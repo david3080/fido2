@@ -1,0 +1,20 @@
+{
+  "environment": "web",
+  "format": "html",
+  "prefix": "https://storage.googleapis.com",
+  "mainga": "UA-49880327-14",
+  "updated": "2020-04-24T09:19:38Z",
+  "id": "fido2-",
+  "duration": 0,
+  "title": "FIDO2サーバの構築",
+  "summary": "FIDO2サーバをnodejsで構築するハンズオン",
+  "source": "1o72P2lPwx_r-zKFRqdWaTSuFUeobzZzgu9KbFSsB5m4",
+  "theme": "fido",
+  "status": null,
+  "category": [
+    "FIDO",
+    "nodejs"
+  ],
+  "tags": [],
+  "url": "fido2-"
+}

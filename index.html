@@ -1,0 +1,1397 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>FIDO2サーバの構築</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="fido2-"
+                  title="FIDO2サーバの構築"
+                  environment="web"
+                  feedback-link="">
+    
+      <google-codelab-step label="はじめに" duration="0">
+        <h2 is-upgraded>FIDO2とはなにか？</h2>
+<p>生体認証を使った本人確認などを通してログインを行いわずらわしいパスワードの入力を回避できる標準化された認証技術に、FIDO2というものがあります。この仕様は<a href="https://fidoalliance.org/" target="_blank">FIDOアライアンス</a>という団体が策定しており、仕様に準拠した認証器やサーバに対して認証を与えるといった活動を行っています。一般的に、Webサービスにユーザを登録するには、ユーザはWebサービスが提供するユーザ登録フォームに自分のEメールアドレス等をユーザIDとして入力し、送信します。その後、Webサービス側から返信されたメールに添付されたユーザ登録用ページへのリンクを開き、パスワードや個人情報を登録してユーザ登録を完了する、といったプロセスを経ます。ログイン時は、ログインページにユーザIDと登録したパスワードを入力してWebサービスにログインする、といった流れになります。このように、認証機能は「登録」フェーズと「ログイン」フェーズに分かれていますが、FIDO認証もこれと同じく「FIDO登録」と「FIDOログイン」にわかれています。これらのしくみについての概要は「<a href="https://fidoalliance.org/how-fido-works/?lang=ja" target="_blank">FIDOの仕組み</a>」を参照してください。</p>
+<p>本書ではFIDO2のサーバ実装のハンズオンを通して、FIDOのしくみをコードレベルで解説します。またFIDOアライアンスは、FIDO2サーバの認証を得るためにインターネット経由でFIDO2サーバに接続し仕様に沿っているかを確認するという手順を踏みますが、正式なチェックを行う前にセルフチェックができる「FIDO Conformance Tools」というWindowsもしくはMacにインストールして利用できるツールが提供されています。その入手方法や利用方法についても解説します。</p>
+<h2 is-upgraded>何を実装するか？</h2>
+<p>本書では、FIDO2対応の認証器を利用するシンプルなWebベースのログインアプリを実装します。上述したように一般的に認証機能は、ユーザの「登録」と「ログイン」に分けられます。そこで本書ではこれらのフローを汎化したサンプルアプリを開発します。まずはパスワードベースのログインを行うだけの、開発のもととなるログインアプリケーションが提供されていますので、そこにFIDO2の機能を付け足す形で開発を行います。</p>
+<aside class="warning"><p><strong>注意: </strong>本書で開発するものは、本番に耐えうる認証機能をすべて含んだものではありません。また完全なFIDO2サーバの仕様をすべて満たすものでもありません。FIDOアライアンスがオフィシャルに提供するFIDO2サーバの仕様を満たすかをチェックする「FIDO Conformance Tools」の入手方法とその実行方法を解説しなるべく多くのテストの成功をめざしますが、すべての機能について実装されているわけではありません。</p>
+<p>また、Gmailのようなスマートフォンを持つ世界中のあらゆるユーザが登録できるWebサービスと、オンラインバンキングでの口座開設のようなユーザ登録に本人確認が必要なWebサービスとでは、登録やログインに必要なステップが異なります。そのため、「認証機能」の実装は、アプリケーションのユースケースにあわせて必要な画面構成も異なるため、注意が必要です。</p>
+</aside>
+<p>本ハンズオンは、Google社が提供の「<a href="https://codelabs.developers.google.com/codelabs/webauthn-reauth" target="_blank">Your First WebAuthn</a>」というFIDO2サーバ構築ハンズオンの一部を修正し、日本語で解説したものです。ハンズオンでは、<a href="https://glitch.com/" target="_blank">glitch</a>というブラウザ上で編集可能なnodejsの開発環境とサーバ環境を無料から利用できるフィリーミアムなWebサービスを利用しています。開発のベースとなるglitchのプロジェクトは、Google提供のオリジナルハンズオンのものを利用していますが、オリジナルのハンズオンのコードではエラーになるところがあるので、エラーが発生しないよう修正しています。また、FIDOアライアンスが提供するFIDO2サーバの自動チェックツール「FIDO Conformance Tools」が使えるよう、インターネット経由でREST APIアクセスを可能にしたり、URIを変更したりしています。</p>
+<p>ハンズオンで開発するFIDO2サーバの開発前と開発後の画面イメージは下記のとおりです。</p>
+<h2 is-upgraded>画面イメージ</h2>
+<p>（開発前）<a href="https://webauthn-codelab-start.glitch.me/" target="_blank">パスワードによるログイン</a></p>
+<table>
+<tr><td colspan="1" rowspan="1"><p>① ユーザ名を入力してNEXTボタンを押下<br><img style="width: 260.50px" src="img/62dfd3996313b2bb.png"></p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>② 初回登録用のパスワードを入力して「SIGN-IN」ボタンを押下<br><img style="width: 272.00px" src="img/30252fe4a494fc14.png"></p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>③ ホーム画面の表示<br><img style="width: 262.50px" src="img/566ee8ebfc7241e7.png"></p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>④ 「TRY REAUTH」ボタンを押下すると画面②に移動するのでパスワードを入れて再度ログイン<br><img style="width: 272.00px" src="img/30252fe4a494fc14.png"></p>
+</td></tr>
+</table>
+<p>（開発後）<a href="https://webauthn-codelab.glitch.me/" target="_blank">FIDO2によるログイン</a></p>
+<aside class="warning"><p><strong>注意:</strong>リンク先のWebサービスはデバイス内蔵型のFIDO2対応認証器でのみ機能するようサーバ側に設定されています。そのため、「生体認証に対応したAndroid端末上のChromeブラウザ」もしくは「生体認証に対応したWindows 10以上のChromeもしくはEdgeブラウザ」で機能します。下記のキャプチャはGoogle Pixel 3a上のChromeブラウザを使ったものです。また、デバイス内蔵型のFIDO2対応認証器を利用するには、デバイスにて事前に画面ロックもしくは指紋を登録しておく必要があります。例えばPixel 3aの場合、「設定」＞「セキュリティ」＞「Pixel Imprint」から指紋を登録しておきます。</p>
+</aside>
+<table>
+<tr><td colspan="1" rowspan="1"><p>①ユーザ名を入力してNEXTボタンを押下<br><img style="width: 139.60px" src="img/bdcd9c058a63b039.png"></p>
+</td><td colspan="1" rowspan="1"><p>②初回登録用パスワードを入力しSIGN-INボタンを押下<br><img style="width: 142.18px" src="img/f3ae7f19fd49624b.png"></p>
+</td><td colspan="1" rowspan="1"><p>③ホーム画面表示。右下の「+」ボタンを押下<br><img style="width: 141.32px" src="img/838a97ad33945595.png"></p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>④指紋認証により本人確認<br>(認証器がキーペアを作成)</p>
+<p class="image-container"><img style="width: 152.50px" src="img/9a332ab76ad4d195.png"></p>
+</td><td colspan="1" rowspan="1"><p>⑤キーペアの公開鍵を送信、サーバに登録</p>
+<p class="image-container"><img style="width: 155.50px" src="img/aa004a1fe2dc5ad9.png"></p>
+</td><td colspan="1" rowspan="1"><p>⑥ TRY REAUTHを押下すると再度指紋認証が求められる</p>
+<p class="image-container"><img style="width: 153.73px" src="img/39b907175b83c025.png"></p>
+</td></tr>
+</table>
+<aside class="warning"><p><strong>注意: </strong>上記キャプチャは、本書ハンズオンが参考にしたGoogle社が提供する「<a href="https://codelabs.developers.google.com/codelabs/webauthn-reauth" target="_blank">Your First WebAuthn</a>」というFIDO2サーバ構築ハンズオンが提供するサイトのものです。本書ハンズオンでは、Android以外のPCを含めたデバイス、Chrome以外のEdgeやSafariといったブラウザ、内蔵型でなくUSB型認証器といった様々な環境に対応するよう修正したものを構築します。</p>
+</aside>
+<h2 is-upgraded>必要なもの</h2>
+<p>本書のハンズオンを行うには、作業がしやすいよう下記のPC環境をおすすめします。</p>
+<p>① Mac Book Pro/AirとChromeブラウザ（Chrome 70以降）</p>
+<p>② Windows 10 PCとChromeブラウザ（Chrome 70以降）</p>
+<p>また下記リンクをChromeで開き、Virtual Authenticators Tabをインストールしてください。</p>
+<p><a href="https://chrome.google.com/webstore/detail/virtual-authenticators-ta/gafbpmlmeiikmhkhiapjlfjgdioafmja" target="_blank">https://chrome.google.com/webstore/detail/virtual-authenticators-ta/gafbpmlmeiikmhkhiapjlfjgdioafmja</a></p>
+<aside class="warning"><p><strong>注意:</strong> デバイス内蔵型認証器付き環境であるWindows Helloが有効なWindows 10 PCとEdgeブラウザの組み合わせもおすすめですが、著者が所有していないため試すことができなかったため、ここではおすすめから外しました。</p>
+</aside>
+<p>開発したFIDO2サーバをブラウザから試すには以下のデバイスとブラウザの組み合わせでの利用も可能です。認証器をお持ちの方や購入検討している方は参考にしてください。</p>
+<p>デバイスとブラウザ（以下のうちのどれか）:</p>
+<ol type="1" start="1">
+<li>Android（Android 7.0以降）とChromeブラウザ（Chrome 70以降）</li>
+<li>iPhoneとSafariブラウザ（iPhone 7以降、iOS 13.3以降）</li>
+<li>Mac Book Pro/AirとChromeブラウザ（Chrome 70以降）</li>
+<li>Windows 10 とEdgeブラウザ（Windows 10 May 2019アップデート以降）</li>
+<li>Windows 10 とChromeブラウザ（Chrome 70以降）</li>
+</ol>
+<aside class="warning"><p><strong>注意: </strong>macOS 10.15以降であればMac Book Pro/Air上のSafariブラウザもFIDO2対応で<br>あり、認証器があれば使えるはずですが、Mac Book Pro（Retina 13-inch 2013）で<br>macOS 10.15.4上のSafariとYubico Security Keyで試したところ、うまく機能しませんでした。</p>
+<p>「<a href="https://developer.apple.com/documentation/safari_release_notes/safari_13_release_notes" target="_blank">Added support for FIDO2-compliant USB security keys with the Web Authentication standard in Safari on macOS</a>.」</p>
+</aside>
+<p>認証器（以下のうちのどれか）:</p>
+<ol type="1" start="1">
+<li>FIDO2対応の認証器</li>
+<li>デバイス内蔵の認証器</li>
+<li>Chrome拡張Virtual Authenticators Tab（物理的な認証器が手元にない場合）</li>
+</ol>
+<p>上記のデバイス、ブラウザと認証器の組み合わせの例は以下のとおりです。</p>
+<table>
+<tr><td colspan="1" rowspan="1"><p>① 認証機内蔵のAndroidとChrome</p>
+<p>(Pixel 3a は背面に指紋認証がついており、<br>ChromeブラウザでFIDO2認証を行います)</p>
+<p class="image-container"><img style="width: 131.04px" src="img/ed8fef65003677f4.png"> <img style="width: 121.50px" src="img/d875c4aa759f2a2a.png"></p>
+</td><td colspan="1" rowspan="1"><p>② AndroidとChromeとUSB型認証器</p>
+<p>(Pixel 3aに「<a href="https://www.yubico.com/product/yubikey-5ci" target="_blank">YubiKey 5Ci</a>」をUSB-Cで接続し、<br>ChromeブラウザでFIDO2認証を行います)</p>
+<p class="image-container"><img style="width: 120.92px" src="img/9298d220a2457be1.png"></p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>③ iPhoneとSafariとUSB型認証器</p>
+<p>(iPhone7に「<a href="https://www.yubico.com/product/yubikey-5ci" target="_blank">YubiKey 5Ci</a>」をLightningで接続、SafariブラウザでFIDO2認証を行います)</p>
+<p class="image-container"><img style="width: 116.50px" src="img/15fcf5a941c9c3ca.png"></p>
+</td><td colspan="1" rowspan="1"><p>④ Mac BookとChromeブラウザとUSB型認証器</p>
+<p>(Mac Bookに「<a href="https://www.yubico.com/product/security-key-by-yubico" target="_blank">Yubico Security Key</a>」をUSB-Aで<br>接続、ChromeブラウザでFIDO2認証を行います)</p>
+<p class="image-container"><img style="width: 200.50px" src="img/a0aa5797d8f272cf.png"></p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>⑤ Windows10とEdgeブラウザとUSB型認証器</p>
+<p>(Windows10に<a href="https://www.yubico.com/product/security-key-by-yubico" target="_blank">Yubico Security Key</a>をUSB-Aで<br>接続、EdgeブラウザでFIDO2認証を行います)</p>
+<p class="image-container"><img style="width: 188.50px" src="img/c95f52b5598e000b.png"></p>
+</td><td colspan="1" rowspan="1"><p>⑥ Windows10とChromeブラウザとUSB型認証器</p>
+<p>(Windows10に<a href="https://www.yubico.com/product/security-key-by-yubico" target="_blank">Yubico Security Key</a>をUSB-Aで<br>接続、ChromeブラウザでFIDO2認証を行います)</p>
+<p class="image-container"><img style="width: 170.50px" src="img/b7dabcc017d4a98.png"></p>
+</td></tr>
+</table>
+<h2 is-upgraded>認証器の種類</h2>
+<p>ここでは上述で紹介した認証器が認証行為そのものとどう関係しているのかを整理します。</p>
+<p>まず、IT分野における「認証」という行為は、一般的に「知識」「所有」「生体」という３つの要素の組み合わせと考えられています。IDとパスワードの組み合わせは物理的な「所有」や「生体」とは関係なく、ユーザ登録をした本人しかほぼ知り得ない「知識」をもとにした認証です。しかし、「ほぼ知り得ない」というのが危険で、フィッシングサイト等を経由して盗まれたり、サーバ側で漏洩したりする危険性があります。一方、公開鍵暗号化方式のキーペアを使った通信では、秘密鍵ファイルの保存管理が面倒くさかったり、紛失の可能性が高いといった問題があります。</p>
+<p>そのため、FIDOでは認証器なるものを用意し、その中の安全なエリアで適宜キーペアが作成され、必要に応じてその中の秘密鍵を使って署名を行ったり相手側から送信された公開鍵による署名をチェックするしくみを採用しています。認証器の重要なポイントは、どのような方法を使っても秘密鍵は取り出すことができないが署名はできる、という機能を持つことです。</p>
+<p>第一段階として、この認証器をUSBドングルやNFCカードとして用意し、ユーザはそれを「所有」し、PINコードで守ることで「知識」のエッセンスを加える方式が取られました。この方式をとるものが上述のYubico社の「<a href="https://www.yubico.com/product/security-key-by-yubico" target="_blank">Yubico Security Key</a>」や「<a href="https://www.yubico.com/product/yubikey-5ci" target="_blank">YubiKey 5Ci</a>」です。さらにこの認証器に「生体」認証のしくみを加え、キーペア作成や秘密鍵による署名、公開鍵による署名のチェックといった処理を認証器が行う前に生体認証を行う、という方式をとるものに進化しました。それを実現しているのがGoogle Pixelに同梱された生体認証による認証器やWindows PCに同梱された生体認証機能であるWindows Hello、Yubico社の「<a href="https://www.yubico.com/blog/yubico-reveals-first-biometric-yubikey-at-microsoft-ignite/" target="_blank">Yubikey Bio</a>」などです。</p>
+<p>以上を認証の3要素の組み合わせと認証方式を整理すると以下の4種類に分けられます。</p>
+<ol type="1" start="1">
+<li>知識：パスワード認証</li>
+<li>所有：PINコードや生体認証のない認証器による認証（YubiKeyの初期状態はこれ）</li>
+<li>知識と所有：PINコードを設定した認証器による認証（YubiKeyに設定できる）</li>
+<li>生体と所有：生体認証のついた認証器による認証（Google PixelやWindows Hello）</li>
+</ol>
+<p>FIDOでは上記3もしくは4を備えた認証器のことを「User Verification（ユーザ検証）」があると表現します。</p>
+<p>また認証器がデバイスに内蔵されているかとりはずせるかによって「platform（内蔵された認証器を利用する場合）」と「cross-platform（取り外し可能な認証器を利用する場合）」や「internal（内蔵型）」、「usb（USBドングル型）」、「ble（ブルートゥース接続型）」、「nfc（NFC接続型）」に分けられます。これらの概念はFIDO2サーバからブラウザに利用可能な認証器のタイプを指定する際に使います。</p>
+<p>ちなみに上述で画面キャプチャを紹介した「FIDO2によるログイン」では、本書のハンズオンのもととなるGoogle社のハンズオン「<a href="https://codelabs.developers.google.com/codelabs/webauthn-reauth" target="_blank">Your First WebAuthn</a>」で構築するFIDO2サーバが「User Verification（ユーザ検証）」に対応した「platform（内蔵された認証器を利用する場合）」で「internal（内蔵型）」の認証器のみ許可するよう指定しているため、これに対応したGoogle Pixel 3a上のChromeを利用しています。「cross-platform（取り外し可能な認証器を利用する場合）」型のYubiKeyではこの条件に反するため利用できないわけです。</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="準備" duration="0">
+        <p>ハンズオンでは前述で紹介した <a href="https://glitch.com/" target="_blank">glitch</a> というフリーミアムなWebサービスを利用します。フリーミアムサービスであることもあり、初回の起動に時間がかかることがあります（たまにサービスがダウンしていることもありますが、<a href="https://status.glitch.com/" target="_blank">https://status.glitch.com/</a> からサービスの状態を確認することができます）。</p>
+<h2 is-upgraded>ハンズオンで何を実装するか？</h2>
+<ol type="1" start="1">
+<li>開発前の「<a href="https://webauthn-codelab-start.glitch.me/" target="_blank">パスワードによるログイン</a>」にコードを付け足すことで、認証器を使ったパスワードレス認証を実装します。</li>
+<li>オリジナルのハンズオンのFIDOサーバでは、対応認証器の条件に「User Verification」型で「platform」型の認証器（例えば、指紋認証機能付きのAndroidスマホなど）を指定していますが、本書ではあらゆるタイプの認証器に対応するよう実装します。</li>
+</ol>
+<h2 is-upgraded>プロジェクトを「Remix」(フォーク)</h2>
+<ol type="1" start="1">
+<li><a href="https://glitch.com/" target="_blank">glitch</a> にユーザ登録し、ログインします。</li>
+<li><a href="https://glitch.com/edit/#!/webauthn-codelab-start" target="_blank">https://glitch.com/edit/#!/webauthn-codelab-start</a> にアクセスし、画面右上の「Remix to Edit」ボタンを押下します。これによりハンズオンのベースプロジェクトであるパスワードログインプロジェクトを自分のプロジェクトとしてフォークします。</li>
+</ol>
+<p class="image-container"><img style="width: 219.94px" src="img/73413fa2c89ee813.png"></p>
+<ol type="1" start="3">
+<li>フォークされたプロジェクトのプロジェクト名は他とかぶらない文字列を使って勝手に生成されますが（下図の「changeable-morning-kos...」）、この文字列は修正が可能です（既存プロジェクト名とかぶらないことが条件）。</li>
+</ol>
+<p class="image-container"><img style="width: 203.08px" src="img/b3be29d9266187e.png"> <img style="width: 201.80px" src="img/e9bc3a9678731719.png"></p>
+<h2 is-upgraded>ホスト名の設定</h2>
+<p>フォークしたプロジェクトを編集するには、下図のように画面左側のファイルツリーから編集したいファイルを選択します。</p>
+<p class="image-container"><img style="width: 330.50px" src="img/488d5e7d802646b6.png"></p>
+<p>まず .env ファイルの該当部分を下記の通り編集します。</p>
+<p>.env</p>
+<pre>HOSTNAME=&lt;プロジェクト名&gt;.glitch.me</pre>
+<p>これによりブラウザから「https://&lt;プロジェクト名&gt;.glitch.me」にアクセスできるようになります。</p>
+<h2 is-upgraded>Virtual Authenticators Tabのインストール</h2>
+<p>前述したとおり、本書はFIDO2サーバ構築のハンズオンであり、本来はFIDO2に対応した認証器を使いたいところですが、FIDOアライアンスには<a href="https://fidoalliance.org/members/" target="_blank">Apple社が参加したばかり</a>の状況で、まだまだデバイス内蔵型の認証器は十分普及していません。また、USB型の認証機などをお持ちの方も少ない状況だと思いますので、ここではパソコン上のChromeブラウザにその拡張機能である「Virtual Authenticators Tab」をインストールして利用することとします。ハンズオンの開発後の確認作業で利用しますので、ここでインストールを行います。</p>
+<aside class="warning"><p><strong>注意:</strong> FIDO2対応の認証器をお持ちの方はこのステップを行わなくてもかまいません。</p>
+</aside>
+<ol type="1" start="1">
+<li>パソコンにChrome（バージョン70以上）がインストールされていない場合は手元のブラウザから下記URLにアクセスしてChromeをインストールします。<br><a href="https://www.google.com/intl/ja_ALL/chrome/" target="_blank">https://www.google.com/intl/ja_ALL/chrome/</a></li>
+<li>Chromeを開いて、<a href="https://chrome.google.com/webstore/category/extensions" target="_blank">chromeウェブストア</a>にアクセスします。</li>
+<li>画面左上のテキストエリアに「Virtual Authenticators Tab」と入力してEnterを押下するとChrome拡張「Virtual Authenticators Tab」がリストの一番上に表示されますので、「Chromeに追加」ボタンを押下してインストールします。</li>
+</ol>
+<p class="image-container"><img style="width: 370.88px" src="img/fb931d4a00c28527.png"></p>
+<ol type="1" start="4">
+<li>右上のボタンを押下し、「その他のツール」&gt;「デベロッパーツール」を選択します。</li>
+</ol>
+<p class="image-container"><img style="width: 479.50px" src="img/4cc765747cfa8b26.png"></p>
+<ol type="1" start="5">
+<li>Chromeブラウザの下部にデベロッパーツールが表示されますので、ヘッダーの一番右側にある「Virtual Authenticators」のタブを選択し、表示された画面上の「Enable Virtual Authenticator Environment」にチェックをいれます。</li>
+</ol>
+<p class="image-container"><img style="width: 517.50px" src="img/decaca8147c88457.png"></p>
+<ol type="1" start="6">
+<li>上図の通り「New Authenticator」画面が表示されますので、デフォルトのままで「Add」ボタンを押下すると仮想認証器が作成され、Chromeブラウザと接続します。これで準備が整った状態になります。</li>
+</ol>
+<p class="image-container"><img style="width: 602.00px" src="img/a032d91eb0bcb497.png"></p>
+<ol type="1" start="7">
+<li>各設定値の意味は以下のとおりです。</li>
+</ol>
+<ul>
+<li>Authenticatorの右に表示される&#34;[8桁]-[4桁]-[4桁]-[4桁]-[12桁]&#34;からなる文字列はAAGUID（Authenticator Attestation Global Unique Identifierの略）と呼ばれ、物理的な認証器一つ一つに割り当てられるIDを表します。本来FIDOアライアンスから認証を受けた認証器メーカに重複しないようにIDを割り当てることによって管理されています。例えば、Yubico社には<a href="https://support.yubico.com/support/solutions/articles/15000028710-yubikey-hardware-fido2-aaguids" target="_blank">リンク先</a>のようなAAGUIDが割り当てられています。</li>
+<li>Protocolとして指定されているCTAP2とはFIDO2で規定されているブラウザと認証器の間でやり取りされるインタフェース仕様を取り決めたものです。そのため、認証器デバイスの製造メーカーが意識する仕様でFIDO2サーバ開発者は意識する必要はありません。</li>
+<li>Transportとは認証器のタイプを表し、USB接続型の場合は&#34;usb&#34;、ブルートゥース接続型の場合&#34;ble&#34;、NFC接続型の場合&#34;nfc&#34;、デバイス内蔵型の場合は&#34;internal&#34;になります。</li>
+<li>Supports Resident KeysのResident Keyとは認証器に登録される複数のキーペアに対してユーザID、ユーザ名、ディスプレイ名もあわせて登録できることを表します。これによりログイン先に対して複数のキーペアの候補がある場合、ディスプレイ名をリストしてユーザを選択して利用するといったユーザインタフェースが可能になります。</li>
+<li>Supports User VerificationのUser Verificationとは「はじめに」の「認証器の種類」で説明したとおり、認証器にアクセスする際生体認証やPINコードを通してユーザの検証を行うかを表します。</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="サーバの構成" duration="0">
+        <p>フォークしたプロジェクトは、nodejsのプロジェクトとして構成されており、npmというパッケージ管理ソフトで管理されています。npmでは、package.jsというファイルでインストールするパッケージやバージョンを指定します。また、本プロジェクトはExpressというWebアプリフレームワークを利用しており、外部からのアクセスはまずserver.jsで処理されます。</p>
+<p>ここでは「server.js」ファイルを開いて下記の説明の該当部分を確認ください。編集は必要ありません。</p>
+<p>server.js</p>
+<pre>app.get(&#39;/&#39;, (req, res) =&gt; {
+  // Check cookie
+  if (req.cookies.username) {
+    // If user is signed in, redirect to `/reauth`.
+    res.redirect(307, &#39;/reauth&#39;);
+    return;
+  }
+  // If user is not signed in, show `index.html` with id/password form.
+  res.render(&#39;index.html&#39;);
+});
+
+app.get(&#39;/home&#39;, (req, res) =&gt; {
+  if (!req.cookies.username ||
+      req.cookies[&#39;signed-in&#39;] != &#39;yes&#39;) {
+    // If user is not signed in, redirect to `/`.
+    res.redirect(307, &#39;/&#39;);
+    return;
+  }
+  // `home.html` shows sign-out link
+  res.render(&#39;home.html&#39;, {username: req.cookies.username});
+});
+
+app.get(&#39;/reauth&#39;, (req, res) =&gt; {
+  const username = req.cookies.username;
+  if (!username) {
+    res.redirect(302, &#39;/&#39;);
+    return;
+  }
+  // Show `reauth.html`.
+  // User is supposed to enter a password (which will be ignored)
+  // Make XHR POST to `/signin`
+  res.render(&#39;reauth.html&#39;, {username: username});
+});</pre>
+<ol type="1" start="1">
+<li>「/」にアクセスすると、クッキーにusernameが設定されていたら「/reauth」にリダイレクトされ、設定されていなければ「public/index.html」にリダイレクトされます。</li>
+<li>「/home」にアクセスすると、クッキーにusernameがセットされ、sign-inにyesがセットされていれば「public/home.html」にアクセスされそうでなければ「/」にリダイレクトされます。</li>
+<li>「/reauth」にアクセスすると、クッキーにusernameが設定されていれば「public/reauth.html」にリダイレクトされそうでなければ「/」にリダイレクトされます。</li>
+</ol>
+<p>server.js</p>
+<pre>app.use(&#39;/auth&#39;, auth);</pre>
+<p>「server.js」の後半で記述されている上記部分は、「/auth」にアクセスすると「libs/auth.js」に処理がうつることを表しており、ここではWebAuthnの仕様で規定されているREST APIを実装しています。しかしこのURIやリクエスト値のJSON形式、レスポンス値のJSON形式がFIDO2仕様と異なっており、後ほど利用する「FIDO Conformance Tools」がうまく通りません。そのため、仕様にあわせて修正を行います。また「FIDO Conformance Tools」はCSRF対応としてヘッダーに「X-Requested-With: XMLHttpRequest」をセットするといった対応はなされておらず、ログイン済みを示すためクッキーに値をセットしたりしないため、「csrfCheck」や「sessionCheck」といった処理も外します。</p>
+<aside class="warning"><p><strong>注意: </strong>本番用サーバでは登録の前処理でIDとしてメールアドレスを利用し存否を確認するなどDOS攻撃を防ぐための処理を加える必要があります。</p>
+</aside>
+<h2 is-upgraded>① ユーザ名登録の修正</h2>
+<p>こちらは「index.html」にユーザ名を入力してNEXTボタンを押下するとPOSTで呼び出される「/auth/username」のAPI実装部分であり、FIDO2サーバとは直接関係ありません。しかし、FIDO2ではユーザのクリデンシャル情報を登録依頼する際、「displayName」というパラメータが必要であるため、下記の通り追加を行います。</p>
+<aside class="warning"><p><strong>注意: </strong>最初からコメントを読んで理解するのは酷なので、初回は修正後のコードを修正前のコードにまるまる上書きして進めて、動かしてみてから復習することをお勧めします。</p>
+</aside>
+<p>libs/auth.js</p>
+<p>修正前：</p>
+<pre>router.post(&#39;/username&#39;, (req, res) =&gt; {
+  const username = req.body.username;
+  // Only check username, no need to check password as this is a mock
+  if (!username) {
+    res.status(400).send({ error: &#39;Bad request&#39; });
+    return;
+  } else {
+    // See if account already exists
+    let user = db.get(&#39;users&#39;)
+      .find({ username: username })
+      .value();
+    // If user entry is not created yet, create one
+    if (!user) {
+      user = {
+        username: username,
+        id: coerceToBase64Url(crypto.randomBytes(32), &#39;user.id&#39;),
+        credentials: []
+      }
+      db.get(&#39;users&#39;)
+        .push(user)
+        .write();
+    }
+    // Set username cookie
+    res.cookie(&#39;username&#39;, username);
+    // If sign-in succeeded, redirect to `/home`.
+    res.json(user);
+  }
+});</pre>
+<p>修正後：</p>
+<pre>router.post(&#39;/username&#39;, (req, res) =&gt; {
+  const username = req.body.username;
+  // Only check username, no need to check password as this is a mock
+  if (!username) {
+    res.status(400).send({ error: &#39;Bad request&#39; });
+    return;
+  } else {
+    // See if account already exists
+    let user = db.get(&#39;users&#39;)
+      .find({ username: username })
+      .value();
+    // If user entry is not created yet, create one
+    if (!user) {
+      user = {
+        username: username,
+        displayName: username, // [追加] displayNameも保存する
+        id: coerceToBase64Url(crypto.randomBytes(32), &#39;user.id&#39;),
+        credentials: []
+      }
+      db.get(&#39;users&#39;)
+        .push(user)
+        .write();
+    }
+    // Set username cookie
+    res.cookie(&#39;username&#39;, username);
+    // If sign-in succeeded, redirect to `/home`.
+    res.json(user);
+  }
+});</pre>
+<h2 is-upgraded>② 登録リクエストの修正</h2>
+<p>FIDO2サーバの登録リクエスト処理では、クライアントからクッキー値としてusernameとdisplayNameが送信されますので、サーバ側ではランダムにチャレンジ文字列を生成しusernameに紐づけてデータベースに保存し、ブラウザが認証器に渡すためのoptionsの値を設定してクライアントに返信します。また、リクエストのクッキーにdisplayNameを追加したり、データベースに存在しないuser情報を保存する処理を追加したりといった修正点は修正後のコード内にコメントとして追加しました。</p>
+<aside class="warning"><p><strong>注意: </strong>最初からコメントを読んで理解するのは酷なので、初回は修正後のコードを修正前のコードにまるまる上書きして進めて、動かしてみてから復習することをお勧めします。</p>
+</aside>
+<p>libs/auth.js</p>
+<p>修正前：</p>
+<pre>router.post(&#39;/registerRequest&#39;, csrfCheck, sessionCheck, async (req, res) =&gt; {
+  const username = req.cookies.username;
+  
+  const user = db.get(&#39;users&#39;)
+    .find({ username: username })
+    .value();
+  try {
+    const response = await f2l.attestationOptions();
+    response.user = {
+      displayName: &#39;No name&#39;,
+      id: user.id,
+      name: user.username
+    };
+    response.challenge = coerceToBase64Url(response.challenge, &#39;challenge&#39;);
+    res.cookie(&#39;challenge&#39;, response.challenge);
+    response.excludeCredentials = [];
+    if (user.credentials.length &gt; 0) {
+      for (let cred of user.credentials) {
+        response.excludeCredentials.push({
+          id: cred.credId,
+          type: &#39;public-key&#39;,
+          transports: [&#39;internal&#39;]
+        });
+      }
+    }
+    response.pubKeyCredParams = [];
+    // const params = [-7, -35, -36, -257, -258, -259, -37, -38, -39, -8];
+    const params = [-7, -257];
+    for (let param of params) {
+      response.pubKeyCredParams.push({type:&#39;public-key&#39;, alg: param});
+    }
+    const as = {}; // authenticatorSelection
+    const aa = req.body.authenticatorSelection.authenticatorAttachment;
+    const rr = req.body.authenticatorSelection.requireResidentKey;
+    const uv = req.body.authenticatorSelection.userVerification;
+    const cp = req.body.attestation; // attestationConveyancePreference
+    let asFlag = false;
+
+    if (aa &amp;&amp; (aa == &#39;platform&#39; || aa == &#39;cross-platform&#39;)) {
+      asFlag = true;
+      as.authenticatorAttachment = aa;
+    }
+    if (rr &amp;&amp; typeof rr == &#39;boolean&#39;) {
+      asFlag = true;
+      as.requireResidentKey = rr;
+    }
+    if (uv &amp;&amp; (uv == &#39;required&#39; || uv == &#39;preferred&#39; || uv == &#39;discouraged&#39;)) {
+      asFlag = true;
+      as.userVerification = uv;
+    }
+    if (asFlag) {
+      response.authenticatorSelection = as;
+    }
+    if (cp &amp;&amp; (cp == &#39;none&#39; || cp == &#39;indirect&#39; || cp == &#39;direct&#39;)) {
+      response.attestation = cp;
+    }
+
+    res.json(response);
+  } catch (e) {
+    res.status(400).send({ error: e });
+  }
+});</pre>
+<p>修正後：</p>
+<pre>// [修正1] URIを変更し、csrfCheckとsessionCheckを削除
+router.post(&#39;/attestation/options&#39;, async (req, res) =&gt; {
+  const username = req.body.username; // [修正2] usernameをbodyから取得
+  const displayName = req.body.displayName; // [修正3] displayNameを追加
+  // [修正4] userは後ほど修正が入るため、型をconstからletに変更
+  let user = db.get(&#39;users&#39;)
+    .find({ username: username })
+    .value();
+  // [修正5] ユーザがいなければDBに追加
+  if (!user) {
+    user = {
+      username: username,
+      displayName: displayName,
+      id: coerceToBase64Url(crypto.randomBytes(32), &#39;user.id&#39;),
+      credentials: []
+    }
+    db.get(&#39;users&#39;)
+      .push(user)
+      .write();
+  }
+  try {
+    const response = await f2l.attestationOptions();
+    response.user = {
+      displayName: user.displayName, // [修正6] displayNameをセット
+      id: user.id,
+      name: user.username
+    };
+    res.cookie(&#39;username&#39;, user.username); // [修正6] usernameをcookieにセット
+    response.challenge = coerceToBase64Url(response.challenge, &#39;challenge&#39;);
+    res.cookie(&#39;challenge&#39;, response.challenge);
+    response.excludeCredentials = [];
+    if (user.credentials.length &gt; 0) {
+      for (let cred of user.credentials) {
+        response.excludeCredentials.push({
+          id: cred.credId,
+          type: &#39;public-key&#39;,
+          // [修正7] 認証器タイプに、&#34;usb&#34;, &#34;nfc&#34;, &#34;ble&#34;を追加
+          transports: [&#39;internal&#39;,&#39;usb&#39;,&#39;nfc&#39;,&#39;ble&#39;]
+        });
+      }
+    }
+    response.pubKeyCredParams = [];
+    // const params = [-7, -35, -36, -257, -258, -259, -37, -38, -39, -8];
+    const params = [-7, -257];
+    for (let param of params) {
+      response.pubKeyCredParams.push({type:&#39;public-key&#39;, alg: param});
+    }
+    // [修正8] リクエストにauthenticatorSelectionがセットされているかチェック
+    if(req.body.authenticatorSelection) {
+      const as = {}; // authenticatorSelection
+      const aa = req.body.authenticatorSelection.authenticatorAttachment;
+      const rr = req.body.authenticatorSelection.requireResidentKey;
+      const uv = req.body.authenticatorSelection.userVerification;
+      let asFlag = false;
+      if (aa &amp;&amp; (aa == &#39;platform&#39; || aa == &#39;cross-platform&#39;)) {
+        asFlag = true;
+        as.authenticatorAttachment = aa;
+      }
+      // [修正9] rrの存否チェックロジックを修正
+      if ((rr !== undefined) &amp;&amp; typeof rr == &#39;boolean&#39;) {
+        asFlag = true;
+        as.requireResidentKey = rr;
+      }
+      if (uv &amp;&amp; (uv == &#39;required&#39; || uv == &#39;preferred&#39; || uv == &#39;discouraged&#39;)) {
+        asFlag = true;
+        as.userVerification = uv;
+      }
+      if (asFlag) {
+        response.authenticatorSelection = as;
+      }
+    }
+    // [修正9] 修正8のロジック追加に伴い、cp部分を移動
+    const cp = req.body.attestation; // attestationConveyancePreference
+    if (cp &amp;&amp; (cp == &#39;none&#39; || cp == &#39;indirect&#39; || cp == &#39;direct&#39;)) {
+      response.attestation = cp;
+    }
+    // [修正10] extensionsを追加
+    const ex = req.body.extensions;
+    if (ex) {
+      response.extensions = ex;
+    }
+    // [修正11] statusとerrorMessageをレスポンスに追加
+    response.status = &#39;ok&#39;;
+    response.errorMessage = &#34;&#34;;
+    res.json(response);
+  } catch (e) {
+    // [修正12] エラー時のresponseを修正
+    res.status(400).send({status:&#34;failed&#34;,
+                          errorMessage:&#34;/attestation/options: &#34;+e.message});
+  }
+});</pre>
+<h2 is-upgraded>③ 登録処理の修正</h2>
+<p>FIDO2サーバの登録処理では、前述の登録リクエストで返されたoptions（ユーザIDやチャレンジ文字列がセット）を受けたブラウザは、「navigator.credentials.create(options)」というFIDO2対応のJavaScriptを実行し、ユーザIDに紐付いたキーペアを作成し、その公開鍵等をセットしたattestation値をFIDOサーバに送信します。FIDO2サーバはここで実装する登録処理で受領したattestationから公開鍵を取り出し、該当するユーザと紐づけてデータベースに保存します。</p>
+<aside class="warning"><p><strong>注意: </strong>最初からコメントを読んで理解するのは酷なので、初回は修正後のコードを修正前のコードにまるまる上書きして進めて、動かしてみてから復習することをお勧めします。</p>
+</aside>
+<p>libs/auth.js</p>
+<p>修正前：</p>
+<pre>router.post(&#39;/registerResponse&#39;, csrfCheck, sessionCheck, async (req, res) =&gt; {
+  const username = req.cookies.username;
+  const challenge = coerceToArrayBuffer(req.cookies.challenge, &#39;challenge&#39;);
+  const credId = req.body.id;
+  const type = req.body.type;
+
+  try {
+    const clientAttestationResponse = { response: {} };
+    clientAttestationResponse.rawId =
+      coerceToArrayBuffer(req.body.rawId, &#34;rawId&#34;);
+    clientAttestationResponse.response.clientDataJSON =
+      coerceToArrayBuffer(req.body.response.clientDataJSON, &#34;clientDataJSON&#34;);
+    clientAttestationResponse.response.attestationObject =
+      coerceToArrayBuffer(req.body.response.attestationObject, &#34;attestationObject&#34;);
+
+    let origin = &#39;&#39;;
+    if (req.get(&#39;User-Agent&#39;).indexOf(&#39;okhttp&#39;) &gt; -1) {
+      const octArray = process.env.ANDROID_SHA256HASH.split(&#39;:&#39;).map(h =&gt; parseInt(h, 16));
+      const androidHash = coerceToBase64Url(octArray, &#39;Android Hash&#39;);
+      origin = `android:apk-key-hash:${androidHash}`; // TODO: Generate
+    } else {
+      origin = `https://${req.get(&#39;host&#39;)}`;
+    }
+
+    const attestationExpectations = {
+      challenge: challenge,
+      origin: origin,
+      factor: &#34;either&#34;
+    };
+
+    const regResult = await f2l.attestationResult(clientAttestationResponse, attestationExpectations);
+
+    const credential = {
+      credId: coerceToBase64Url(regResult.authnrData.get(&#34;credId&#34;), &#39;credId&#39;),
+      publicKey: regResult.authnrData.get(&#34;credentialPublicKeyPem&#34;),
+      aaguid: coerceToBase64Url(regResult.authnrData.get(&#34;aaguid&#34;), &#39;aaguid&#39;),
+      prevCounter: regResult.authnrData.get(&#34;counter&#34;)
+    };
+
+    const user = db.get(&#39;users&#39;)
+      .find({ username: username })
+      .value();
+
+    user.credentials.push(credential);
+
+    db.get(&#39;users&#39;)
+      .find({ username: username })
+      .assign(user)
+      .write();
+
+    res.clearCookie(&#39;challenge&#39;);
+
+    // Respond with user info
+    res.json(user);
+  } catch (e) {
+    res.clearCookie(&#39;challenge&#39;);
+    res.status(400).send({ error: e.message });
+  }
+});</pre>
+<p>修正後：</p>
+<pre>// [修正1] URIを変更し、csrfCheckとsessionCheckを削除
+const base64url = require(&#39;base64url&#39;);
+router.post(&#39;/attestation/result&#39;, async (req, res) =&gt; {
+  const username = req.cookies.username;
+  const challenge = coerceToArrayBuffer(req.cookies.challenge, &#39;challenge&#39;);
+  const credId = req.body.id;
+  const type = req.body.type;
+  
+  try {
+    if(!req.body.id || typeof req.body.id != &#39;string&#39;) { //[修正2]idをチェック
+      throw Error(&#34;Not adequate user id&#34;);
+    } else if(req.body.id != req.body.rawId) { //[修正3]idとrawIdが同じかチェック
+      throw Error(&#34;User id and rawId is different.&#34;);
+    }
+    if(!req.body.type || req.body.type != &#39;public-key&#39;) { //[修正4]typeをチェック
+      throw Error(&#34;&#39;type&#39; is not &#39;public-key&#39;&#34;);
+    }
+    //[修正5]clientDataJSON.originがnullでなくstringであることをチェック
+    let clientDataJSON = JSON.parse(base64url.decode(req.body.response.clientDataJSON));
+    if(!clientDataJSON.origin || typeof clientDataJSON.origin != &#39;string&#39;) {
+      throw Error(&#34;clientDataJSON.origin should be string&#34;);
+    }
+    
+    const clientAttestationResponse = { response: {} };
+    clientAttestationResponse.rawId =
+      coerceToArrayBuffer(req.body.rawId, &#34;rawId&#34;);
+    clientAttestationResponse.response.clientDataJSON =
+      coerceToArrayBuffer(req.body.response.clientDataJSON, &#34;clientDataJSON&#34;);
+    clientAttestationResponse.response.attestationObject =
+      coerceToArrayBuffer(req.body.response.attestationObject, &#34;attestationObject&#34;);
+
+    let origin = &#39;&#39;;
+    if (req.get(&#39;User-Agent&#39;).indexOf(&#39;okhttp&#39;) &gt; -1) {
+      const octArray = process.env.ANDROID_SHA256HASH.split(&#39;:&#39;).map(h =&gt; parseInt(h, 16));
+      const androidHash = coerceToBase64Url(octArray, &#39;Android Hash&#39;);
+      origin = `android:apk-key-hash:${androidHash}`; // TODO: Generate
+    } else {
+      origin = `https://${req.get(&#39;host&#39;)}`;
+    }
+    //[修正6]clientDataJSON.originとoriginが同一であることのチェック
+    if(clientDataJSON.origin != origin) {
+      throw Error(&#34;clientDataJSON.origin and origin should be same.&#34;);
+    }
+
+    const attestationExpectations = {
+      challenge: challenge,
+      origin: origin,
+      factor: &#34;either&#34;
+    };
+
+    //[修正7] デバッグのため、f2l.attestationResultの例外処理を追加
+    let regResult;
+    try {
+      regResult = await f2l.attestationResult(clientAttestationResponse, attestationExpectations);
+    } catch(e) {
+      console.log(e.message);
+      throw e;
+    }
+    
+    const credential = {
+      credId: coerceToBase64Url(regResult.authnrData.get(&#34;credId&#34;), &#39;credId&#39;),
+      publicKey: regResult.authnrData.get(&#34;credentialPublicKeyPem&#34;),
+      aaguid: coerceToBase64Url(regResult.authnrData.get(&#34;aaguid&#34;), &#39;aaguid&#39;),
+      prevCounter: regResult.authnrData.get(&#34;counter&#34;)
+    };
+
+    const user = db.get(&#39;users&#39;)
+      .find({ username: username })
+      .value();
+
+    user.credentials.push(credential);
+
+    db.get(&#39;users&#39;)
+      .find({ username: username })
+      .assign(user)
+      .write();
+
+    res.clearCookie(&#39;challenge&#39;);
+    // Respond with user info
+    // [修正8] statusとerrorMessageをレスポンスに追加
+    user.status = &#34;ok&#34;;
+    user.errorMessage = &#34;&#34;;
+    res.json(user);
+  } catch (e) {
+    res.clearCookie(&#39;challenge&#39;);
+    // [修正9] エラー時のresponseを修正
+    res.status(400).send({status:&#34;failed&#34;,
+                          errorMessage:&#34;/attestation/result: &#34;+e.message});
+  }
+});</pre>
+<p>上記コードをコピーすると「const base64url = require(&#39;base64url&#39;);」部分でエラーになると思いますが、これはnpmのパッケージにbase64urlというものがインストールされていないことが理由です。npmパッケージは「package.json」に設定しますので、「package.json」を開いて下記の通り「&#34;dependencies&#34; : {」の下部に「&#34;base64url&#34;: &#34;^3.0.1&#34;,」を追記します。ファイルを保存するとglitchが勝手にnpmパッケージをダウンロード・インストールしてくれます。</p>
+<p>package.json</p>
+<pre>{
+  &#34;name&#34;: &#34;webauthn-codelab&#34;,
+  &#34;version&#34;: &#34;0.0.1&#34;,
+  &#34;description&#34;: &#34;A simple Node app built on Express, instantly up and running.&#34;,
+  &#34;main&#34;: &#34;server.js&#34;,
+  &#34;scripts&#34;: {
+    &#34;start&#34;: &#34;node server.js&#34;
+  },
+  &#34;dependencies&#34;: {
+    &#34;base64url&#34;: &#34;^3.0.1&#34;,
+    &#34;express&#34;: &#34;^4.16.4&#34;,
+    &#34;hbs&#34;: &#34;^4.0.4&#34;,
+    &#34;cookie-parser&#34;: &#34;^1.4.4&#34;,
+    &#34;lowdb&#34;: &#34;^1.0.0&#34;,
+    &#34;crypto&#34;: &#34;^1.0.1&#34;,
+    &#34;fido2-lib&#34;: &#34;agektmr/fido2-lib#android-compatible3&#34;
+  },
+  &#34;engines&#34;: {
+    &#34;node&#34;: &#34;8.x&#34;
+  },
+  &#34;repository&#34;: {
+    &#34;url&#34;: &#34;https://glitch.com/edit/#!/hello-express&#34;
+  },
+  &#34;license&#34;: &#34;MIT&#34;,
+  &#34;keywords&#34;: [
+    &#34;node&#34;,
+    &#34;glitch&#34;,
+    &#34;express&#34;
+  ]
+}</pre>
+<h2 is-upgraded>④ 認証依頼処理の修正</h2>
+<p>FIDO2サーバの認証依頼処理では、クライアント側からユーザ名（username）とローカルに保存したクリデンシャルID（credId）が送信されますので、サーバ側ではユーザ名をもとにデータベースを検索してその存否を確認します。存在しなければ認証できませんのでその旨を返します。ユーザが存在していたら、そのユーザに紐付いたクリデンシャルが保存されているかをクライアントから送信されたクリデンシャルIDをキーにして検索し、存在していればそれを返信のため、allowCredentialsという配列にセットします。サーバから返信する値はassertionオプションと呼ばれ、そこに認証時に使うチャレンジ文字列や前述のallowCredentials配列をセットしてクライアントに返します。</p>
+<aside class="warning"><p><strong>注意: </strong>最初からコメントを読んで理解するのは酷なので、初回は修正後のコードを修正前のコードにまるまる上書きして進めて、動かしてみてから復習することをお勧めします。</p>
+</aside>
+<p>libs/auth.js</p>
+<p>修正前：</p>
+<pre>router.post(&#39;/signinRequest&#39;, csrfCheck, async (req, res) =&gt; {
+  try {
+    const user = db.get(&#39;users&#39;)
+      .find({ username: req.cookies.username })
+      .value();
+    
+    if (!user) {
+      // Send empty response if user is not registered yet.
+      res.json({error: &#39;User not found.&#39;});
+      return;
+    }
+    
+    const credId = req.query.credId;
+
+    const response = await f2l.assertionOptions();
+
+    // const response = {};
+    response.userVerification = req.body.userVerification || &#39;required&#39;;
+    response.challenge = coerceToBase64Url(response.challenge, &#39;challenge&#39;);
+    res.cookie(&#39;challenge&#39;, response.challenge);
+
+    response.allowCredentials = [];
+    for (let cred of user.credentials) {
+      // When credId is not specified, or matches the one specified
+      if (!credId || cred.credId == credId) {
+        response.allowCredentials.push({
+          id: cred.credId,
+          type: &#39;public-key&#39;,
+          transports: [&#39;internal&#39;]
+        });
+      }
+    }
+
+    res.json(response);
+  } catch (e) {
+    res.status(400).json({ error: e });
+  }
+});</pre>
+<p>修正後：</p>
+<pre>router.post(&#39;/assertion/options&#39;, async (req, res) =&gt; {
+  try {
+    const user = db.get(&#39;users&#39;)
+      .find({ username: req.cookies.username })
+      .value();
+    
+    if (!user) {
+      // Send empty response if user is not registered yet.
+      res.json({error: &#39;User not found.&#39;});
+      return;
+    }
+    
+    const credId = req.query.credId;
+    
+    const response = await f2l.assertionOptions();
+    
+    // const response = {};
+    response.userVerification = req.body.userVerification || &#39;required&#39;;
+    response.challenge = coerceToBase64Url(response.challenge, &#39;challenge&#39;);
+    res.cookie(&#39;challenge&#39;, response.challenge);
+
+    response.allowCredentials = [];
+    for (let cred of user.credentials) {
+      // When credId is not specified, or matches the one specified
+      if (!credId || cred.credId == credId) {
+        response.allowCredentials.push({
+          id: cred.credId,
+          type: &#39;public-key&#39;,
+          transports: [&#39;internal&#39;,&#39;usb&#39;,&#39;nfc&#39;,&#39;ble&#39;] // [修正1] usb&#34;, &#34;nfc&#34;, &#34;ble&#34;を追加
+        });
+      }
+    }
+    // [修正2] extensionsを追加
+    const ex = req.body.extensions;
+    if (ex) {
+      response.extensions = ex;
+    }
+    // [修正3] statusとerrorMessageをレスポンスに追加
+    response.status = &#34;ok&#34;;
+    response.errorMessage = &#34;&#34;;
+    res.json(response);
+  } catch (e) {
+    // [修正4] エラー時のresponseを修正
+    res.status(400).send({status:&#34;failed&#34;,
+                          errorMessage:&#34;/assertion/options: &#34;+e.message});
+  }
+});</pre>
+<p>⑤ 認証処理の修正</p>
+<p>FIDO2サーバの認証処理では、クライアントから送信されるFIDO2認証に必要な署名情報を受領します。そして、サーバ側に保存されたユーザの公開鍵と認証依頼処理で作成したチャレンジ文字列、サーバのホスト名（FQDN）で構成されるorigin値といった値から構成されるassertionExpectation（認証の期待値）と、クライアントから受領した公開鍵のID（rawID）やクライアント側が認識するチャレンジ文字列とorigin値などを含むclientDataJSON、クライアント側で署名した情報を含むauthenticatorDataといった値を含むclientAssertionResponseとを比較して正しい署名情報かをチェックします。</p>
+<aside class="warning"><p><strong>注意: </strong>最初からコメントを読んで理解するのは酷なので、初回は修正後のコードを修正前のコードにまるまる上書きして進めて、動かしてみてから復習することをお勧めします。</p>
+</aside>
+<p>libs/auth.js</p>
+<p>修正前：</p>
+<pre>router.post(&#39;/signinResponse&#39;, csrfCheck, async (req, res) =&gt; {
+  // Query the user
+  const user = db.get(&#39;users&#39;)
+    .find({ username: req.cookies.username })
+    .value();
+
+  let credential = null;
+  for (let cred of user.credentials) {
+    if (cred.credId === req.body.id) {
+      credential = cred;
+    }
+  }
+
+  try {
+    if (!credential) {
+      throw &#39;Authenticating credential not found.&#39;;
+    }
+
+    const challenge = coerceToArrayBuffer(req.cookies.challenge, &#39;challenge&#39;);
+    const origin = `https://${req.get(&#39;host&#39;)}`; // TODO: Temporary work around for scheme
+    
+    const clientAssertionResponse = { response: {} };
+    clientAssertionResponse.rawId =
+      coerceToArrayBuffer(req.body.rawId, &#34;rawId&#34;);
+    clientAssertionResponse.response.clientDataJSON =
+      coerceToArrayBuffer(req.body.response.clientDataJSON, &#34;clientDataJSON&#34;);
+    clientAssertionResponse.response.authenticatorData =
+      coerceToArrayBuffer(req.body.response.authenticatorData, &#34;authenticatorData&#34;);
+    clientAssertionResponse.response.signature =
+      coerceToArrayBuffer(req.body.response.signature, &#34;signature&#34;);
+    clientAssertionResponse.response.userHandle =
+      coerceToArrayBuffer(req.body.response.userHandle, &#34;userHandle&#34;);
+    const assertionExpectations = {
+      challenge: challenge,
+      origin: origin,
+      factor: &#34;either&#34;,
+      publicKey: credential.publicKey,
+      prevCounter: credential.prevCounter,
+      userHandle: coerceToArrayBuffer(user.id, &#39;userHandle&#39;)
+    };
+    const result = await f2l.assertionResult(clientAssertionResponse, assertionExpectations);
+
+    credential.prevCounter = result.authnrData.get(&#34;counter&#34;);
+
+    db.get(&#39;users&#39;)
+      .find({ id: req.cookies.id })
+      .assign(user)
+      .write();
+
+    res.clearCookie(&#39;challenge&#39;);
+    res.cookie(&#39;signed-in&#39;, &#39;yes&#39;);
+    res.json(user);
+  } catch (e) {
+    res.clearCookie(&#39;challenge&#39;);
+    res.status(400).json({ error: e });
+  }
+});</pre>
+<p>修正後：</p>
+<pre>router.post(&#39;/assertion/result&#39;, async (req, res) =&gt; {
+  try {
+    //[修正1]typeをチェック
+    if(!req.body.type || req.body.type != &#39;public-key&#39;) {
+      throw Error(&#34;&#39;type&#39; is not &#39;public-key&#39;&#34;);
+    }
+    
+    // Query the user
+    const user = db.get(&#39;users&#39;)
+    .find({ username: req.cookies.username })
+    .value();
+
+    let credential = null;
+    for (let cred of user.credentials) {
+      if (cred.credId === req.body.id) {
+        credential = cred;
+      }
+    }
+
+    if (!credential) {
+      throw &#39;Authenticating credential not found.&#39;;
+    }
+    const challenge = coerceToArrayBuffer(req.cookies.challenge, &#39;challenge&#39;);
+    const origin = `https://${req.get(&#39;host&#39;)}`; // TODO: Temporary work around for scheme
+    
+    const clientAssertionResponse = { response: {} };
+    clientAssertionResponse.rawId =
+      coerceToArrayBuffer(req.body.rawId, &#34;rawId&#34;);
+    clientAssertionResponse.response.clientDataJSON =
+      coerceToArrayBuffer(req.body.response.clientDataJSON, &#34;clientDataJSON&#34;);
+    clientAssertionResponse.response.authenticatorData =
+      coerceToArrayBuffer(req.body.response.authenticatorData, &#34;authenticatorData&#34;);
+    clientAssertionResponse.response.signature =
+      coerceToArrayBuffer(req.body.response.signature, &#34;signature&#34;);
+    clientAssertionResponse.response.userHandle =
+      coerceToArrayBuffer(req.body.response.userHandle, &#34;userHandle&#34;);
+    const assertionExpectations = {
+      challenge: challenge,
+      origin: origin,
+      factor: &#34;either&#34;,
+      publicKey: credential.publicKey,
+      prevCounter: credential.prevCounter,
+      userHandle: coerceToArrayBuffer(user.id, &#39;userHandle&#39;)
+    };
+    //[修正2] デバッグのため、f2l.assertionResultの例外処理を追加
+    let result;
+    try {
+      result = await f2l.assertionResult(clientAssertionResponse, assertionExpectations);
+    } catch(e) {
+      console.log(&#34;f2l.assertionResult: &#34;+e.message);
+      throw e;
+    }
+
+    credential.prevCounter = result.authnrData.get(&#34;counter&#34;);
+
+    db.get(&#39;users&#39;)
+      .find({ id: req.cookies.id })
+      .assign(user)
+      .write();
+
+    res.clearCookie(&#39;challenge&#39;);
+    res.cookie(&#39;signed-in&#39;, &#39;yes&#39;);
+    // [修正3] statusとerrorMessageをレスポンスに追加
+    user.status = &#34;ok&#34;;
+    user.errorMessage = &#34;&#34;;
+    res.json(user);
+  } catch (e) {
+    res.clearCookie(&#39;challenge&#39;);
+    // [修正4] エラー時のresponseを修正
+    res.status(400).send({status:&#34;failed&#34;,
+                          errorMessage:&#34;/assertion/result: &#34;+e.message});
+  }
+});</pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Webアプリの作成: 登録" duration="0">
+        <p>「サーバの構成」では、FIDO2サーバのREST API部分である「auth.js」のソースコードの修正を行いましたが、「Webアプリの作成」では「public/client.js」を編集し、必要なロジックを追加していきます。また、FIDO2サーバがブラウザに提供するHTMLファイルは「views」フォルダ配下に配置されており、ユーザ名入力画面が「views/index.html」、パスワード入力画面が「views/reauth.html」、ホーム画面が「views/home.html」ですので、こちらにもFIDO2認証に対応するためのUIやロジックを追加していきます。</p>
+<p>ここで実装する「登録」では、ホーム画面の右下にFABボタンを用意してユーザの認証器が作成するキーペアの公開鍵を登録できるよう実装します。</p>
+<h2 is-upgraded>registerCredential() 関数の追加</h2>
+<p>home画面に実装するFABボタンのクリック時に呼び出される関数 registerCredential() を「public/client.js」に実装していきます。</p>
+<p>public/client.js<br>コメント「// 6. Register the credential to the server endpoint: `/auth/registerResponse`」の下部に下記コードを追記</p>
+<pre>export const registerCredential = async (opts) =&gt; {
+  // ここに以下に説明するコードを追記します。
+  // ①ブラウザのWebAuthn対応チェック
+  // ②サーバのAPIエンドポイントからoptionsを取得
+  // ③クリデンシャルの作成
+  // ④サーバのAPIエンドポイントにクリデンシャルを登録
+};</pre>
+<aside class="warning"><p><strong>注意</strong>: この関数はJavaScriptモジュールとして利用するため、関数定義の前にexportを付与します。また、非同期を表すasyncとして定義しているため、関数内では非同期関数の実行にawaitを宣言して、その完了を待つことができるようになります。</p>
+</aside>
+<h2 is-upgraded>①ブラウザのWebAuthn対応チェック</h2>
+<p>まずはじめにブラウザがWebAuthnに対応しているかをチェックします。そのチェックのためにwindow.PublicKeyCredential を実行し、WebAuthnに対応していなければ例外を投げます。</p>
+<p>public/client.js<br>上記registerCredential関数の中のコメント①の下部に追記</p>
+<pre>if (!window.PublicKeyCredential) {
+  throw &#39;WebAuthn not supported on this browser.&#39;;
+}</pre>
+<h2 is-upgraded>②サーバのAPIエンドポイントからoptionsを取得</h2>
+<p>認証器にキーペアの生成を依頼する前に、サーバにチャレンジ文字列とその他のパラメータの生成を依頼し、取得します。そのためにAPIを実行する関数 _fetch() を opts を引数に実行し、サーバにPOSTでリクエストを送信します。</p>
+<p>public/client.js<br>上記registerCredential関数の中のコメント②の下部に追記</p>
+<pre>const options = await _fetch(&#39;/auth/attestation/options&#39;, opts);</pre>
+<aside class="special"><p><strong>ノート</strong>: 関数 _fetch() は  application/json 型のオプションをbodyにセットしてPOSTで送信するよう実装されています。またサーバからJSON値が返信されoptionsにセットします。</p>
+</aside>
+<p>上記の処理でクライアントがサーバから取得するoptions はWebAuthn仕様で規定されている <a href="https://www.w3.org/TR/webauthn/#dictdef-publickeycredentialcreationoptions" target="_blank">PublicKeyCredentialCreationOptions</a> にのっとって作成されます。optionsは下記のような構造をしています。</p>
+<pre>{
+  &#34;rp&#34;: {
+    &#34;name&#34;: &#34;WebAuthn Codelab&#34;,
+    &#34;id&#34;: &#34;webauthn-codelab.glitch.me&#34;
+  },
+  &#34;user&#34;: {
+    &#34;displayName&#34;: &#34;Test&#34;,
+    &#34;id&#34;: &#34;...&#34;,
+    &#34;name&#34;: &#34;test&#34;
+  },
+  &#34;challenge&#34;: &#34;...&#34;,
+  &#34;pubKeyCredParams&#34;: [
+    {
+      &#34;type&#34;: &#34;public-key&#34;,
+      &#34;alg&#34;: -7
+    }, {
+      &#34;type&#34;: &#34;public-key&#34;,
+      &#34;alg&#34;: -257
+    }
+  ],
+  &#34;timeout&#34;: 1800000,
+  &#34;attestation&#34;: &#34;none&#34;,
+  &#34;excludeCredentials&#34;: [
+    {
+      &#34;id&#34;: &#34;...&#34;,
+      &#34;type&#34;: &#34;public-key&#34;,
+      &#34;transports&#34;: [
+        &#34;internal&#34;
+      ]
+    }
+  ],
+  &#34;authenticatorSelection&#34;: {
+    &#34;authenticatorAttachment&#34;: &#34;platform&#34;,
+    &#34;userVerification&#34;: &#34;required&#34;
+  }
+}</pre>
+<h2 is-upgraded>③クリデンシャルの作成</h2>
+<p>上記のoptionsはHTTP送信されるためエンコードされているため、user.id と challenge と excludeCredentials に含まれる ids といったパラメータはバイナリにデコードします。</p>
+<p>public/client.js<br> 上記registerCredential関数の中のコメント③の下部に追記</p>
+<pre>options.user.id = window.base64url.decode(options.user.id);
+options.challenge = window.base64url.decode(options.challenge);
+
+if (options.excludeCredentials) {
+  for (let cred of options.excludeCredentials) {
+    cred.id = window.base64url.decode(cred.id);
+  }
+}
+
+const cred = await navigator.credentials.create({
+  publicKey: options
+});</pre>
+<p>その後、navigator.credentials.create() を実行して、認証器に新しいクリデンシャルの生成を依頼します。今回は「Virtual Authenticator Tab」で生成したAuthenticatorが自動的にクリデンシャルを生成し、リストに追加します。生成されたクリデンシャル（cred）は、このあと登録のためサーバに送信されます。</p>
+<h2 is-upgraded>④サーバのAPIエンドポイントにクリデンシャルを登録</h2>
+<p>クリデンシャルオブジェクトは以下のような形をしています。</p>
+<pre>{
+  &#34;id&#34;: &#34;...&#34;,
+  &#34;rawId&#34;: &#34;...&#34;,
+  &#34;type&#34;: &#34;public-key&#34;,
+  &#34;response&#34;: {
+    &#34;clientDataJSON&#34;: &#34;...&#34;,
+    &#34;attestationObject&#34;: &#34;...&#34;
+  }
+}</pre>
+<p>クリデンシャル作成前に取得したオプションと同じく、クリデンシャルのいくつかのバイナリパラメータは文字列としてサーバに送信するためエンコードが必要です。またクリデンシャルIDはローカル保存し、登録したIDをもとに認証できるようにします。最後にクリデンシャルオブジェクトをサーバに送信し、HTTPコードが200で返ってきたら登録に成功したことを表します。</p>
+<p>public/client.js<br> 上記registerCredential関数の中のコメント④の下部に追記</p>
+<pre>const credential = {};
+credential.id =     cred.id;
+credential.rawId =  window.base64url.encode(cred.rawId);
+credential.type =   cred.type;
+if (cred.response) {
+  const clientDataJSON =
+    window.base64url.encode(cred.response.clientDataJSON);
+  const attestationObject =
+    window.base64url.encode(cred.response.attestationObject);
+  credential.response = {
+    clientDataJSON,
+    attestationObject
+  };
+}
+localStorage.setItem(`credId`, credential.id);
+return await _fetch(&#39;/auth/attestation/result&#39; , credential);</pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Webアプリの作成: 登録画面" duration="0">
+        <p>ホーム画面「views/home.html」にクリデンシャルを登録するFABボタンと登録されたクリデンシャルのリストと削除ボタンを追加します。</p>
+<h2 is-upgraded>① UI部分の実装</h2>
+<p>このあと追加する getCredentials 関数で設定する ul#list に登録されたクリデンシャルが &lt;div id=&#34;list&#34;&gt;&lt;/div&gt; 部分にリスト表示されます。その後に設定した &lt;button id=&#34;register&#34; ...&gt; はFABボタンを表し、ボタンを押下するとあとで追加する register 関数が実行されます。</p>
+<p>views/home.html<br>コメント「1. Build UI placeholder --&gt;」の下部に下記コードを追記</p>
+<pre>&lt;h3 class=&#34;mdc-typography mdc-typography--headline6&#34;&gt;
+  Your registered credentials:
+&lt;/h3&gt;
+&lt;section&gt;
+  &lt;div id=&#34;list&#34;&gt;&lt;/div&gt;
+  &lt;button id=&#34;register&#34; class=&#34;mdc-fab mdc-ripple-upgraded&#34;&gt;
+    &lt;i class=&#34;mdc-fab__icon material-icons&#34;&gt;+&lt;/i&gt;
+  &lt;/button&gt;
+&lt;/section&gt;</pre>
+<h2 is-upgraded>② クリデンシャルのリストを生成する getCredentials 関数</h2>
+<p>ul#list にクリデンシャルリストを表示するHTML値をセットします。最後に「getCredentials();」を記述することで、「/home」にアクセスしたときにクリデンシャルリストが表示されるようになります。</p>
+<p>views/home.html<br>コメント「// 2. Get a list of credentials and display: `getCredentials()`」下部に以下コードを追記</p>
+<pre>const getCredentials = async () =&gt; {
+  const res = await _fetch(&#39;/auth/getKeys&#39;);
+  const list = document.querySelector(&#39;#list&#39;);
+  if (res.credentials.length === 0) {
+    list.innerHTML = &#39;&lt;div&gt;No credentials found.&lt;/div&gt;&#39;;
+    return;
+  }
+  const creds = html`${repeat(res.credentials, cred =&gt; cred.credId,(cred, index) =&gt;
+    html`&lt;div class=&#34;mdc-card credential&#34;&gt;
+      &lt;span class=&#34;mdc-typography mdc-typography--body2&#34;&gt;${cred.credId}&lt;/span&gt;
+      &lt;pre class=&#34;public-key&#34;&gt;${cred.publicKey}&lt;/pre&gt;
+      &lt;div class=&#34;mdc-card__actions&#34;&gt;
+        &lt;button id=&#34;${cred.credId}&#34; class=&#34;mdc-button mdc-button--raised&#34; @click=&#34;${removeCredential}&#34;&gt;Remove&lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;`)}`;
+  render(creds, list);
+};
+getCredentials();</pre>
+<aside class="special"><p><strong>ノート</strong>: &#34;<a href="https://lit-html.polymer-project.org/" target="_blank">lit-html</a>&#34;というHTMLテンプレートライブラリを利用しています。</p>
+</aside>
+<h2 is-upgraded>③ クリデンシャルを削除する removeCredential 関数</h2>
+<p>クリデンシャルのリストにはそれぞれ「remove」ボタンが作成され、ボタンを押下すると credId を引数に /auth/removeKey が呼ばれ、該当のクリデンシャルが削除されます。</p>
+<p>public/client.js</p>
+<p>コメント「// 3. Remove the credential: `removeCredential()`」の下部に追記</p>
+<pre>export const unregisterCredential = async (credId) =&gt; {
+  localStorage.removeItem(&#39;credId&#39;);
+  return _fetch(`/auth/removeKey?credId=${encodeURIComponent(credId)}`);
+};</pre>
+<p>views/home.html<br>コメント「// 3. Remove the credential: `removeCredential()`」の下部に追記</p>
+<pre>import { unregisterCredential } from &#39;/client.js&#39;;
+const removeCredential = async e =&gt; {
+  try {
+    await unregisterCredential(e.target.id);
+    location.reload();
+  } catch (e) {
+    alert(e);
+  }
+};</pre>
+<h2 is-upgraded>④ クリデンシャルの登録</h2>
+<p>最後に「+」のFABボタンが押下されると、新規クリデンシャルを登録するために registerCredential() 関数を実行します。</p>
+<p>views/home.html<br>コメント「// 4. Register a credential」の下部に追記</p>
+<pre>import { registerCredential } from &#39;/client.js&#39;;
+const register = document.querySelector(&#34;#register&#34;);
+register.addEventListener(&#34;click&#34;, e =&gt; {
+  registerCredential({
+    username: &#34;&#123;&#123;username}}&#34;, // TODO usernameを追加
+    displayName: &#34;&#123;&#123;username}}&#34;, // TODO displayNameを追加
+    attestation: &#34;none&#34;,
+    authenticatorSelection: {
+      // authenticatorAttachment: &#34;cross-platform&#34;,
+      userVerification: &#34;preferred&#34;,
+      requireResidentKey: false
+    }
+  }).then(user =&gt; {
+      location.reload();
+    }).catch(e =&gt; alert(e));
+});</pre>
+<p>registerCredential() 関数の引数は <a href="https://www.w3.org/TR/webauthn/#dictdef-publickeycredentialcreationoptions" target="_blank">PublicKeyCredentialCreationOptions</a> の形式をとりますが、詳細は下記のとおりです。</p>
+<table>
+<tr><td colspan="2" rowspan="1"><p>attestation</p>
+</td><td colspan="1" rowspan="1"><p>認証器メーカーにより認証器に組み込まれたattestation証明書が正当なものかをチェックする(direct）か正当なものでなくてもよいか（indirect）、attestation証明書チェックをしないか（none）を指定（<a href="https://medium.com/studist-dev/webauthn2-2af9d689894b" target="_blank">参考</a>）。</p>
+</td></tr>
+<tr><td colspan="1" rowspan="3"><p>authenticatorSelection</p>
+</td><td colspan="1" rowspan="1"><p>authenticatorAttachment</p>
+</td><td colspan="1" rowspan="1"><p>認証器の種類を指定。デバイス内蔵型（platform）か取り外し可能型（cross-platform）かを指定できるが、どちらにも対応したいため、ここではコメントアウトしている。</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>userVerification</p>
+</td><td colspan="1" rowspan="1"><p>ユーザ検証が必要（required）か必要ない（discouraged）か可能なら実施する（preferred）かを指定。requiredを指定するとPIN入力や生体認証が求められる。</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>requireResidentKey</p>
+</td><td colspan="1" rowspan="1"><p>認証器に含まれる複数のキーペアをユーザ名とともにブラウザ上にリストしてユーザに選ばせる&#34;account picker&#34; と呼ばれるUXを表示する場合、trueに設定する。</p>
+</td></tr>
+</table>
+<aside class="special"><p><strong>オプション</strong>: 各オプションを変更しながら試してみると理解が深まります。</p>
+</aside>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Webアプリの作成: 認証と認証画面" duration="0">
+        <p>登録と登録画面の実装が完了したので、認証と認証画面を実装していきます。実装後は、ユーザ名がクッキーに残っている状態で、ユーザがブラウザから /reauth にアクセスするとブラウザは自動的に認証器にアクセスし認証が行われます。認証器にPINコードがセットされていればPINコード入力、生体認証がセットされていれば生体認証後にログインが完了し、/home 画面に遷移します。認証器に対応していなかったり認証器による認証が失敗したら従来のパスワード入力が求められます。</p>
+<h2 is-upgraded>authenticate() 関数の追加</h2>
+<p>authenticate() 関数を作成し、認証器による認証処理を作成します。</p>
+<p>public/client.js<br>コメント「// 1. Create `authetnicate()` function」の下部に追記</p>
+<pre>export const authenticate = async (opts) =&gt; {
+  // ① ブラウザのWebAuthn対応チェック
+  // ②サーバのAPIエンドポイントからoptionsを取得
+  // ③ 認証器からクリデンシャルを取得
+  // ④ サーバにクリデンシャルを送信して認証
+};</pre>
+<h2 is-upgraded>① ブラウザのWebAuthn対応チェック</h2>
+<p>「登録」のときと同じく、まずはじめにブラウザがWebAuthnに対応しているかをチェックします。そのチェックのためにwindow.PublicKeyCredential を実行し、WebAuthnに対応していなければ例外を投げます。We can replicate the same behavior we did on registration.</p>
+<p>public/client.js<br>上記authenticate関数の中のコメント①の下部に追記</p>
+<pre>if (!window.PublicKeyCredential) {
+  console.info(&#39;WebAuthn not supported on this browser.&#39;);
+  return Promise.resolve(null)
+}</pre>
+<aside class="special"><p>「登録」のとき例外を投げたのとは異なり、「Promise.resolve(null) 」を使っているのは、認証器による認証ができない場合でも画面にとどまってパスワード認証をするためです。</p>
+</aside>
+<h2 is-upgraded>②サーバのAPIエンドポイントからoptionsを取得</h2>
+<p>認証に先立ち、ユーザにひもづくクリデンシャルIDが保存されているかを確認し、クエリパラメータにセットします。この値はサーバ側の「認証依頼」処理に送信されます。サーバは認証器による認証のための署名に必要なパラメータをoptionsとして返します。また、optionsのallowCredentialsが空の場合は、送信したクリデンシャルIDに対応した公開鍵がサーバ側に登録されていないことを意味しますので、パスワード入力に移ります。</p>
+<p>public/client.js<br>上記authenticate関数の中のコメント②の下部に追記</p>
+<pre>let url = &#39;/auth/assertion/options&#39;;
+const credId = localStorage.getItem(`credId`);
+if (credId) {
+  url += `?credId=${encodeURIComponent(credId)}`;
+}
+const options = await _fetch(url, opts);
+if (options.allowCredentials.length === 0) {
+  console.info(&#39;No registered credentials found.&#39;);
+  return Promise.resolve(null);
+}</pre>
+<p>以下がサーバから返信されるoptionsの例で、<a href="https://www.w3.org/TR/webauthn/#dictdef-publickeycredentialrequestoptions" target="_blank">PublicKeyCredentialRequestOptions</a> の仕様に従ったものです。</p>
+<pre>{
+  &#34;challenge&#34;: &#34;...&#34;,
+  &#34;timeout&#34;: 1800000,
+  &#34;rpId&#34;: &#34;webauthn-codelab.glitch.me&#34;,
+  &#34;userVerification&#34;: &#34;required&#34;,
+  &#34;allowCredentials&#34;: [
+    {
+      &#34;id&#34;: &#34;...&#34;,
+      &#34;type&#34;: &#34;public-key&#34;,
+      &#34;transports&#34;: [
+        &#34;internal&#34;
+      ]
+    }
+  ]
+}</pre>
+<aside class="special"><p>これらの仕様の詳細が知りたい場合は <a href="https://www.w3.org/TR/webauthn/#dictdef-publickeycredentialrequestoptions" target="_blank">WebAuthn仕様</a> を参照ください。</p>
+</aside>
+<p>allowCredentials は下記のいずれかの値を取ります。</p>
+<table>
+<tr><td colspan="1" rowspan="1"><p>値</p>
+</td><td colspan="1" rowspan="1"><p>意味</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>空配列([])</p>
+</td><td colspan="1" rowspan="1"><p>サーバに該当するクリデンシャルが登録されていない場合</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>配列が1つのオブジェクトを含む</p>
+</td><td colspan="1" rowspan="1"><p>送信したクリデンシャルIDとマッチするクリデンシャルがサーバに登録されている場合</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>配列が複数のオブジェクトを含む</p>
+</td><td colspan="1" rowspan="1"><p>クリデンシャルIDを指定していないがユーザがサーバに複数のクリデンシャルが登録されている場合。例えば複数のUSB認証器を同一ユーザで登録している場合、新規デバイスからログインを試みた場合</p>
+</td></tr>
+</table>
+<aside class="warning"><p><strong>重要</strong> 下記のようにクライアントにてクリデンシャルIDが取得できない場合があります。</p>
+<ul>
+<li>ユーザが新しいデバイスからログイン</li>
+<li>既存デバイスからサインインするが、異なるブラウザやアプリからログイン</li>
+<li>ローカルストレージがクリアされた場合</li>
+</ul>
+<p>これらのケースでは allowCredentials が空の場合は認証器は登録されたユーザのリストを返し、ブラウザにダイアログを表示してリストの中から該当ユーザを選択するような実装が推奨されます。これは認証器が提供する「タイプレスログイン」といったものです。</p>
+<p>しかし、最新の多くのブラウザはまだこの機能をサポートしていないためエラーを返すよう実装しています。代替案として、クライアント側からクリデンシャルIDが提供されない場合、サーバに登録されたユーザに紐付いたすべてのクリデンシャルをallowCredentialsに配列でセットして返すというものがありますが、ブラウザは受け取ったallowCredentialsにセットされたクリデンシャルIDのうちデバイスに保存されたものを選択し、もしなければローミング型認証器（USBやBLE、NFC型認証器のこと）を接続することを促すダイアログを表示するといった方法が考えられます。</p>
+</aside>
+<h2 is-upgraded>③ 認証器からクリデンシャルを取得</h2>
+<p>上記のoptionsはHTTP送信されるためエンコードされているため、challenge と allowCredentials に含まれる ids といったパラメータはバイナリにデコードします。そして、navigator.credentials.get() 関数を実行して、認証器に署名を要求します。もし認証器がPINコードロックされていたり、生体認証を求めるものであればその作業をユーザに促します。その後、認証器内の該当クリデンシャルを使って署名されたクリデンシャルオブジェクトをサーバに送付して認証を行います。</p>
+<p>public/client.js<br>上記authenticate関数の中のコメント③の下部に追記</p>
+<pre>options.challenge = window.base64url.decode(options.challenge);
+for (let cred of options.allowCredentials) {
+  cred.id = window.base64url.decode(cred.id);
+}
+const cred = await navigator.credentials.get({
+  publicKey: options
+});</pre>
+<h2 is-upgraded>④ サーバにクリデンシャルを送信して認証</h2>
+<p>navigator.credentials.get() を通して認証器からブラウザが取得するクリデンシャルの例は以下のとおりです。</p>
+<pre>{
+  &#34;id&#34;: &#34;...&#34;,
+  &#34;type&#34;: &#34;public-key&#34;,
+  &#34;rawId&#34;: &#34;...&#34;,
+  &#34;response&#34;: {
+    &#34;clientDataJSON&#34;: &#34;...&#34;,
+    &#34;authenticatorData&#34;: &#34;...&#34;,
+    &#34;signature&#34;: &#34;...&#34;,
+    &#34;userHandle&#34;: &#34;&#34;
+  }
+}</pre>
+<p>クリデンシャルのバイナリパラメータはサーバに送信できるよう文字列にエンコードされます。また、再ログインの際利用できるよう、クリデンシャルIDをローカルストレージに保存することを忘れないようにします。最終にこのクリデンシャルオブジェクトはサーバに送信され、HTTPコードが200で返ってきたらユーザが正しくログインできたことを意味します。</p>
+<p>public/client.js<br>上記authenticate関数の中のコメント④の下部に追記</p>
+<pre>const credential = {};
+credential.id =     cred.id;
+credential.type =   cred.type;
+credential.rawId =  window.base64url.encode(cred.rawId);
+if (cred.response) {
+  const clientDataJSON =
+    window.base64url.encode(cred.response.clientDataJSON);
+  const authenticatorData =
+    window.base64url.encode(cred.response.authenticatorData);
+  const signature =
+    window.base64url.encode(cred.response.signature);
+  const userHandle =
+    window.base64url.encode(cred.response.userHandle);
+  credential.response = {
+    clientDataJSON,
+    authenticatorData,
+    signature,
+    userHandle
+  };
+}
+localStorage.setItem(`credId`, credential.id);
+return await _fetch(`/auth/assertion/result`, credential);</pre>
+<aside class="special"><p><strong>ノート</strong> 登録時にクライアント側に保存したクリデンシャルIDを認証時にも保存するのは二度手間だと思う人がいるかもしれませんが、将来的にはローミング型認証器を使い、登録作業を行っていない別のデバイス上のブラウザでも認証を行うことができるようになります。その場合、クリデンシャルIDの保存そのものが必要なくなりますが、ログイン後の再ログインの際にクリデンシャルIDがローカル保存されているとローミング型認証機に保存された複数のクリデンシャルから該当のものを選択する手間がはぶけるため、認証時にも保存することを操作性向上のためにおすすめします。なお、クリデンシャルIDは単なるIDなので、他人に知られても他のプライベートデータに紐づけて個人情報が盗まれるといったことはありません。</p>
+</aside>
+<aside class="warning"><p><strong>注意 </strong>このサーバサイドにおける署名の確認処理はWebAuthnのコアですが、ここで提供されるソースコードやライブラリは本番では利用しないでください（後述しますが、未実装部分も多くあります）。本番利用を想定して開発され、FIDO2認証を受けたオープンソースソフトウェアも存在しますので、最後の章で紹介します。</p>
+</aside>
+<h2 is-upgraded>⑤ 認証画面</h2>
+<p>認証処理は /reauth にアクセスすると行われますが、「views/reauth.html」画面にて行われます。この画面に下記を追記して、画面の読み込み時に「public/client.js」の authenticate() が自動実行され、クリデンシャルが登録されている場合、認証器を経由したログインをこころみます。</p>
+<p>views/reauth.html<br>コメント「// 1. Apply the biometric authentication when user comes back」の下部に追記</p>
+<pre>import { authenticate } from &#39;/client.js&#39;;
+authenticate({userVerification: &#39;preferred&#39;}).then(user =&gt; {
+  if (user) {
+    location.href = &#39;/home&#39;;
+  }
+}).catch(e =&gt; {
+  console.error(e);
+  console.info(&#39;Authentication failed. Use password to sign-in.&#39;);
+});</pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Chromeブラウザによる確認" duration="0">
+        <p>ここまでに実装したFIDO2サーバに「Virtual Authenticators Tab」インストールしたChromeブラウザでアクセスして稼働を確認します。手順は以下のとおりです。</p>
+<table>
+<tr><td colspan="1" rowspan="1"><p>① サーバに登録されたユーザデータをサーバ上からクリアするために、下記URLをブラウザから実行します。もちろんこの機能は開発環境としての機能であり本番では実装してはいけません。</p>
+<p>https://&lt;プロジェクト名&gt;.glitch.me/auth/resetDB</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>② 「https://&lt;プロジェクト名&gt;.glitch.me」にアクセスし、Virtual Authenticator Tabを起動し、デフォルト値でAuthenticatorを作成します。その後、「username」に適当なユーザ名を入力して「NEXT」ボタンを押下します。</p>
+<p class="image-container"><img style="width: 393.50px" src="img/a219838b60da890f.png"></p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>③ 次のページで「password」に適当なパスワードを入力して「SIGN-IN」ボタンを押下します。初回のため、クリデンシャルが登録されていないため、パスワード入力が必要です。</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>④ ホーム画面が表示されますので、右下「+」のFABボタンを押下すると仮想的なAuthenticatorが自動的にクリデンシャルを作成して公開鍵をサーバに登録します。<br><img style="width: 379.50px" src="img/3c000bace3a6f40e.png"></p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>⑤ ホーム画面で「TRY REAUTH」ボタンを押下すると画面③に移動しますが、仮想認証器のクリデンシャルが読み込まれ、自動的に再ログインします。</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>⑥ ホーム画面で「SIGN OUT」ボタンを押下すると画面②に移動しますが、再度先程入力したユーザ名を入力して「NEXT」ボタンを押下すると②に移動しますが、再び仮想認証器のクリデンシャルが読み込まれ、自動的に再ログインします。クリデンシャルが何度ログインに使用されたかは「Virtual Authenticator Tab」画面にあるクリデンシャルのリスト表にある「Sign Count」列に数値として表示されます。<br><img style="width: 583.00px" src="img/fdf96ad5e63cc461.png"></p>
+<p>ちなみに、Exportをクリックするとクリデンシャルの秘密鍵がダウンロードでき、Removeをクリックするとクリデンシャルを削除することができます。</p>
+</td></tr>
+</table>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="FIDO アライアンスの認定プログラムについて" duration="0">
+        <h2 is-upgraded>FIDOアライアンスの認定プログラム</h2>
+<p>前述したとおりFIDOアライアンスはFIDOの仕様策定と認証器やFIDOサーバに対する<a href="https://fidoalliance.org/certification/?lang=ja" target="_blank">認定プログラム</a>を提供しています。この<a href="https://fidoalliance.org/certification/functional-certification/?lang=ja" target="_blank">機能認定プログラム</a>における手順のうちまず最初に行うのはテストツールを使用してセフルチェックを行うことです。</p>
+<h2 is-upgraded>FIDO 自己テストツールの取得方法</h2>
+<p>FIDO自己テストツールの入手方法は<a href="https://fidoalliance.org/certification/functional-certification/conformance/" target="_blank">リンク先</a>から申請を行うことでだれでも無料でダウンロード先とID、パスワードをFIDOアライアンスからメールで教えてもらうことができます。本書ではFIDO2サーバを構築しましたので、「FIDO2 Test Tools」を利用します。<a href="https://fidoalliance.org/tool-request-agreement/" target="_blank">申請フォーム</a>に必要項目を入力しSubmitします。数日後に指定したEmailアドレスに必要な情報が送られてきます。</p>
+<p class="image-container"><img style="width: 254.33px" src="img/fa3c629f2d028a42.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="FIDO 自己テストツールの実行" duration="0">
+        <p>返信メールに記載されたURLにベーシック認証でログインするとフォルダのリストが表示されますので、「Desktop UAF FIDO2 U2F」を選択します。その後、最新バージョンのフォルダを選択すると、Windows版実行ファイル（拡張子exe）、Windows版インストーラ（拡張子msi）もしくはMac版インストーラ（拡張子dmg）の各ファイルをダウンロードできるリンクが表示されますのでプラットフォームに従って選択してダウンロードします。</p>
+<p>① インストール後、「FIDO Conformance Tools」を実行します。</p>
+<p class="image-container"><img style="width: 348.50px" src="img/fc98cf97ec3ae72a.png"></p>
+<p>② FIDO2 TestsのRunをクリックします。</p>
+<p class="image-container"><img style="width: 350.78px" src="img/9636de3f39e867df.png"></p>
+<p>③ FIDO2 TestsにServer URLと実行するテストを選択します。Server URLは画面右上の「TESTS CONFIGURATION」の真下に「https://&lt;プロジェクト名&gt;.glitch.me/auth」をセットします。実行するテストとしては画面左下の以下の4つを選択します。</p>
+<ul>
+<li>MakeCredential Request : 登録リクエスト処理を意味します。</li>
+<li>MakeCredential Response : 登録処理を意味します。</li>
+<li>GetAssertion Request : 認証リクエスト処理を意味します。</li>
+<li>GetAssertion Response : 認証処理を意味します。</li>
+</ul>
+<p class="image-container"><img style="width: 368.41px" src="img/2d69955f2348e35b.png"></p>
+<p>④ 「RUN」ボタンを押下して実行すると下記のような結果になります。本ハンズオンの実装では121のテストケースのうち32が失敗します。</p>
+<p class="image-container"><img style="width: 368.50px" src="img/798aef371201493f.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="残作業と考察" duration="0">
+        <p>以上のテスト結果が示すとおり、認証器を使ったログインを実現するFIDO2サーバを構築しましたが、三分の一ほどがエラーになります。これはハンズオンが利用しているnpmライブラリがFIDO2を完全にサポートしていないことが理由です。</p>
+<p>本書のFIDO2サーバ構築における最も重要なnpmライブラリは「package.json」で宣言されている「&#34;fido2-lib&#34;: &#34;agektmr/fido2-lib#android-compatible3&#34;」です。このライブラリはgithubを直接見にいっており「<a href="https://github.com/agektmr/fido2-lib/tree/android-compatible3/lib" target="_blank">https://github.com/agektmr/fido2-lib/tree/android-compatible3/lib</a>」を利用しています。</p>
+<p>このコードは上記リンク先のGithubにおける下記表記が示すとおり、Google提供のハンズオンを作成した「agektmr」さんが管理するものであり、もともとは「apowers313」さんが開発したソースコードをベースにしています。</p>
+<p class="image-container"><img style="width: 283.50px" src="img/5608679306c3e1b.png"></p>
+<p>なお、このライブラリがFIDO2サーバ構築における最も重要であると述べたのは、ライブラリが提供する「f2l」が「libs/auth.js」に記載された下記の４つのコードに関係しているためです。</p>
+<table>
+<tr><td colspan="1" rowspan="1"><p>-</p>
+</td><td colspan="1" rowspan="1"><p>コード</p>
+</td><td colspan="1" rowspan="1"><p>説明</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>①</p>
+</td><td colspan="1" rowspan="1"><p> f2l.attestationOptions()</p>
+</td><td colspan="1" rowspan="1"><p>クリデンシャル作成前に認証器にわたすオプションを作成。対応するテストケースは「MakeCredential Request」。</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>②</p>
+</td><td colspan="1" rowspan="1"><p>f2l.attestationResult(</p>
+<p>  clientAttestationResponse,</p>
+<p>  attestationExpectations</p>
+<p>)</p>
+</td><td colspan="1" rowspan="1"><p>認証器が作成したクリデンシャルを登録前にチェック。対応するテストケースは「MakeCredential Response」。</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>③</p>
+</td><td colspan="1" rowspan="1"><p>f2l.assertionOptions()</p>
+</td><td colspan="1" rowspan="1"><p>署名作成前に認証器にわたすオプションを作成。対応するテストケースは「GetAssertion Request」。</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>④</p>
+</td><td colspan="1" rowspan="1"><p>f2l.assertionResult(</p>
+<p>clientAssertionResponse,</p>
+<p>assertionExpectations</p>
+<p>)</p>
+</td><td colspan="1" rowspan="1"><p>認証器が作成した署名を認証のために検証。対応するテストケースは「GetAssertion Response」。</p>
+</td></tr>
+</table>
+<p><br>テストケースで失敗しているのは②と④であり、validateで呼ばれる下記コードなどに未実装部分があるため、テストが失敗していると思われます。</p>
+<p><a href="https://github.com/agektmr/fido2-lib/blob/android-compatible3/lib/attestations/packed.js" target="_blank">https://github.com/agektmr/fido2-lib/blob/android-compatible3/lib/attestations/packed.js</a></p>
+<p>そのため、FIDO2の自己テストツールを通すには上記Githubのソースコードをフォークして未実装部分を追加し、それをpackage.jsonで読み込む形で開発をすすめる必要があります。</p>
+<p>一方、<a href="https://github.com/herrjemand/awesome-webauthn" target="_blank">リンク先の記事</a>が示すとおり、FIDO2サーバとしていくつか参考になる実装がありますが、その中でも下記の理由から「Strong Key: FIDO2 Server」がおすすめです。</p>
+<ul>
+<li>オープンソースソフトウェアですが商用に耐えうるFIDO2サーバ認証を取得している</li>
+<li>ライセンスはLGPLなのでライブラリ利用なら新規開発分を公開する必要がない</li>
+</ul>
+<p>またクライアント側にも課題があります。ここまで動かしてみて気づいたかもしれませんが、ローミング型の認証器はスマホとは別に購入が必要です。最近、Androidデバイスの多くは低価格版も含め生体認証対応の認証機を含みますが、iPhoneは生体認証がついていてもFIDO2に対応していません。そのため、FIDO2の普及にはデバイス内蔵型の認証機の普及が必須であると考えられます。</p>
+<p>一方、AndroidもiPhoneも生体認証は普及しつつあり、ロックを解除しないと取り出しができないセキュアストレージの機能を持つスマホは普及しつつあります。このセキュアストレージにクリデンシャルを保存する形で認証器を模した実装が可能であり、例えば下記ではこの手法を使って物理的な認証機を持たないWebAuthnクライアントをサンプル実装しています。</p>
+<p><a href="https://github.com/lyokato/WebAuthnKit-Android" target="_blank">https://github.com/lyokato/WebAuthnKit-Android</a><br><a href="https://github.com/lyokato/WebAuthnKit-iOS" target="_blank">https://github.com/lyokato/WebAuthnKit-iOS</a></p>
+<p>さらにこのFIDO2認証を認可のしくみであるOpenID Connectと連携して、認証認可をトータルに提供するAPI環境を構築することが望まれます。</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="参考資料" duration="0">
+        <table>
+<tr><td colspan="1" rowspan="1"><p>タイトル</p>
+</td><td colspan="1" rowspan="1"><p>URL</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>認定の概要</p>
+</td><td colspan="1" rowspan="1"><p><a href="https://fidoalliance.org/certification/?lang=ja" target="_blank">https://fidoalliance.org/certification/?lang=ja</a> </p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>機能認定の概要</p>
+</td><td colspan="1" rowspan="1"><p><a href="https://fidoalliance.org/certification/functional-certification/?lang=ja" target="_blank">https://fidoalliance.org/certification/functional-certification/?lang=ja</a> </p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>はじめに</p>
+</td><td colspan="1" rowspan="1"><p><a href="https://fidoalliance.org/certification/getting-started/?lang=ja" target="_blank">https://fidoalliance.org/certification/getting-started/?lang=ja</a> </p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>FAQ</p>
+</td><td colspan="1" rowspan="1"><p><a href="https://fidoalliance.org/faqs/?lang=ja" target="_blank">https://fidoalliance.org/faqs/?lang=ja</a> </p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>テストツール申請</p>
+</td><td colspan="1" rowspan="1"><p><a href="https://fidoalliance.org/certification/functional-certification/conformance/" target="_blank">https://fidoalliance.org/certification/functional-certification/conformance/</a></p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>認定事業者の確認</p>
+</td><td colspan="1" rowspan="1"><p><a href="https://fidoalliance.org/fido-certified-showcase/" target="_blank">https://fidoalliance.org/fido-certified-showcase/</a> </p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>FIDOのしくみ</p>
+</td><td colspan="1" rowspan="1"><p><a href="https://fidoalliance.org/how-fido-works/?lang=ja" target="_blank">https://fidoalliance.org/how-fido-works/?lang=ja</a> </p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>仕様概要</p>
+</td><td colspan="1" rowspan="1"><p><a href="https://fidoalliance.org/specifications/" target="_blank">https://fidoalliance.org/specifications/</a> </p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>仕様ダウンロード</p>
+</td><td colspan="1" rowspan="1"><p><a href="https://fidoalliance.org/specifications/download/" target="_blank">https://fidoalliance.org/specifications/download/</a> </p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>Yahoo</p>
+</td><td colspan="1" rowspan="1"><p><a href="https://techblog.yahoo.co.jp/advent-calendar-2018/webauthn/" target="_blank">https://techblog.yahoo.co.jp/advent-calendar-2018/webauthn/</a> </p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>メルカリ</p>
+</td><td colspan="1" rowspan="1"><p><a href="https://tech.mercari.com/entry/2019/06/04/120000" target="_blank">https://tech.mercari.com/entry/2019/06/04/120000</a> </p>
+</td></tr>
+</table>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>
