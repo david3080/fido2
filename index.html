@@ -6,10 +6,10 @@
   <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
   <meta name="theme-color" content="#4F7DC9">
   <meta charset="UTF-8">
-  <title>FIDO2サーバの構築</title>
+  <title>FIDO2</title>
   <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
   <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
-  <link rel="stylesheet" href="./codelab-elements.css">
+  <link rel="stylesheet" href="https://storage.googleapis.com/claat-public/codelab-elements.css">
   <style>
     .success {
       color: #1e8e3e;
@@ -22,8 +22,8 @@
 <body>
   <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
   <google-codelab codelab-gaid=""
-                  id="fido2-"
-                  title="FIDO2サーバの構築"
+                  id="fido2"
+                  title="FIDO2"
                   environment="web"
                   feedback-link="">
     
@@ -41,88 +41,38 @@
 <h2 is-upgraded>画面イメージ</h2>
 <p>（開発前）<a href="https://webauthn-codelab-start.glitch.me/" target="_blank">パスワードによるログイン</a></p>
 <table>
-<tr><td colspan="1" rowspan="1"><p>① ユーザ名を入力してNEXTボタンを押下<br><img style="width: 260.50px" src="img/62dfd3996313b2bb.png"></p>
+<tr><td colspan="1" rowspan="1"><p>① ユーザ名を入力してNEXTボタンを押下<br><img style="width: 260.50px" src="img/fdd15ffdecf24fd.png"></p>
 </td></tr>
-<tr><td colspan="1" rowspan="1"><p>② 初回登録用のパスワードを入力して「SIGN-IN」ボタンを押下<br><img style="width: 272.00px" src="img/30252fe4a494fc14.png"></p>
+<tr><td colspan="1" rowspan="1"><p>② 初回登録用のパスワードを入力して「SIGN-IN」ボタンを押下<br><img style="width: 272.00px" src="img/1e3ccdac940a3fec.png"></p>
 </td></tr>
-<tr><td colspan="1" rowspan="1"><p>③ ホーム画面の表示<br><img style="width: 262.50px" src="img/566ee8ebfc7241e7.png"></p>
+<tr><td colspan="1" rowspan="1"><p>③ ホーム画面の表示<br><img style="width: 262.50px" src="img/cb7178035786a0c.png"></p>
 </td></tr>
-<tr><td colspan="1" rowspan="1"><p>④ 「TRY REAUTH」ボタンを押下すると画面②に移動するのでパスワードを入れて再度ログイン<br><img style="width: 272.00px" src="img/30252fe4a494fc14.png"></p>
+<tr><td colspan="1" rowspan="1"><p>④ 「TRY REAUTH」ボタンを押下すると画面②に移動するのでパスワードを入れて再度ログイン<br><img style="width: 272.00px" src="img/1e3ccdac940a3fec.png"></p>
 </td></tr>
 </table>
 <p>（開発後）<a href="https://webauthn-codelab.glitch.me/" target="_blank">FIDO2によるログイン</a></p>
-<aside class="warning"><p><strong>注意:</strong>リンク先のWebサービスはデバイス内蔵型のFIDO2対応認証器でのみ機能するようサーバ側に設定されています。そのため、「生体認証に対応したAndroid端末上のChromeブラウザ」もしくは「生体認証に対応したWindows 10以上のChromeもしくはEdgeブラウザ」で機能します。下記のキャプチャはGoogle Pixel 3a上のChromeブラウザを使ったものです。また、デバイス内蔵型のFIDO2対応認証器を利用するには、デバイスにて事前に画面ロックもしくは指紋を登録しておく必要があります。例えばPixel 3aの場合、「設定」＞「セキュリティ」＞「Pixel Imprint」から指紋を登録しておきます。</p>
+<aside class="warning"><p><strong>注意:</strong>リンク先のWebサービスはデバイス内蔵型のFIDO2対応認証器でのみ機能するようサーバ側に設定されています。現在では、Google社もMicrosoft社もApple社もFIDOアライアンスに参加しており、PCもスマホもほとんどのデバイスがFIDO2対応認証機を持つデバイスなので、動作可能と思われますが、注意が必要です。ちなみに、下記のキャプチャはGoogle Pixel 3a上のChromeブラウザを使ったものです。また、デバイス内蔵型のFIDO2対応認証器を利用するには、デバイスにて事前に画面ロックもしくは指紋を登録しておく必要があります。例えばPixel 3aの場合、「設定」＞「セキュリティ」＞「Pixel Imprint」から指紋を登録しておく必要があります。</p>
 </aside>
 <table>
-<tr><td colspan="1" rowspan="1"><p>①ユーザ名を入力してNEXTボタンを押下<br><img style="width: 139.60px" src="img/bdcd9c058a63b039.png"></p>
-</td><td colspan="1" rowspan="1"><p>②初回登録用パスワードを入力しSIGN-INボタンを押下<br><img style="width: 142.18px" src="img/f3ae7f19fd49624b.png"></p>
-</td><td colspan="1" rowspan="1"><p>③ホーム画面表示。右下の「+」ボタンを押下<br><img style="width: 141.32px" src="img/838a97ad33945595.png"></p>
+<tr><td colspan="1" rowspan="1"><p>①ユーザ名を入力してNEXTボタンを押下<br><img style="width: 139.60px" src="img/74143d9c3b54475.png"></p>
+</td><td colspan="1" rowspan="1"><p>②初回登録用パスワードを入力しSIGN-INボタンを押下<br><img style="width: 142.18px" src="img/b7705f2f73d39ccf.png"></p>
+</td><td colspan="1" rowspan="1"><p>③ホーム画面表示。右下の「+」ボタンを押下<br><img style="width: 141.32px" src="img/9b833a8951d8d959.png"></p>
 </td></tr>
 <tr><td colspan="1" rowspan="1"><p>④指紋認証により本人確認<br>(認証器がキーペアを作成)</p>
-<p class="image-container"><img style="width: 152.50px" src="img/9a332ab76ad4d195.png"></p>
+<p class="image-container"><img style="width: 152.50px" src="img/45d0e61b1ce994b4.png"></p>
 </td><td colspan="1" rowspan="1"><p>⑤キーペアの公開鍵を送信、サーバに登録</p>
-<p class="image-container"><img style="width: 155.50px" src="img/aa004a1fe2dc5ad9.png"></p>
+<p class="image-container"><img style="width: 155.50px" src="img/f6b6b73b12b4126a.png"></p>
 </td><td colspan="1" rowspan="1"><p>⑥ TRY REAUTHを押下すると再度指紋認証が求められる</p>
-<p class="image-container"><img style="width: 153.73px" src="img/39b907175b83c025.png"></p>
+<p class="image-container"><img style="width: 153.73px" src="img/22423f89643dc6e6.png"></p>
 </td></tr>
 </table>
 <aside class="warning"><p><strong>注意: </strong>上記キャプチャは、本書ハンズオンが参考にしたGoogle社が提供する「<a href="https://codelabs.developers.google.com/codelabs/webauthn-reauth" target="_blank">Your First WebAuthn</a>」というFIDO2サーバ構築ハンズオンが提供するサイトのものです。本書ハンズオンでは、Android以外のPCを含めたデバイス、Chrome以外のEdgeやSafariといったブラウザ、内蔵型でなくUSB型認証器といった様々な環境に対応するよう修正したものを構築します。</p>
 </aside>
-<h2 is-upgraded>必要なもの</h2>
-<p>本書のハンズオンを行うには、作業がしやすいよう下記のPC環境をおすすめします。</p>
-<p>① Mac Book Pro/AirとChromeブラウザ（Chrome 70以降）</p>
-<p>② Windows 10 PCとChromeブラウザ（Chrome 70以降）</p>
-<p>また下記リンクをChromeで開き、Virtual Authenticators Tabをインストールしてください。</p>
-<p><a href="https://chrome.google.com/webstore/detail/virtual-authenticators-ta/gafbpmlmeiikmhkhiapjlfjgdioafmja" target="_blank">https://chrome.google.com/webstore/detail/virtual-authenticators-ta/gafbpmlmeiikmhkhiapjlfjgdioafmja</a></p>
-<aside class="warning"><p><strong>注意:</strong> デバイス内蔵型認証器付き環境であるWindows Helloが有効なWindows 10 PCとEdgeブラウザの組み合わせもおすすめですが、著者が所有していないため試すことができなかったため、ここではおすすめから外しました。</p>
-</aside>
-<p>開発したFIDO2サーバをブラウザから試すには以下のデバイスとブラウザの組み合わせでの利用も可能です。認証器をお持ちの方や購入検討している方は参考にしてください。</p>
-<p>デバイスとブラウザ（以下のうちのどれか）:</p>
-<ol type="1" start="1">
-<li>Android（Android 7.0以降）とChromeブラウザ（Chrome 70以降）</li>
-<li>iPhoneとSafariブラウザ（iPhone 7以降、iOS 13.3以降）</li>
-<li>Mac Book Pro/AirとChromeブラウザ（Chrome 70以降）</li>
-<li>Windows 10 とEdgeブラウザ（Windows 10 May 2019アップデート以降）</li>
-<li>Windows 10 とChromeブラウザ（Chrome 70以降）</li>
-</ol>
-<aside class="warning"><p><strong>注意: </strong>macOS 10.15以降であればMac Book Pro/Air上のSafariブラウザもFIDO2対応で<br>あり、認証器があれば使えるはずですが、Mac Book Pro（Retina 13-inch 2013）で<br>macOS 10.15.4上のSafariとYubico Security Keyで試したところ、うまく機能しませんでした。</p>
-<p>「<a href="https://developer.apple.com/documentation/safari_release_notes/safari_13_release_notes" target="_blank">Added support for FIDO2-compliant USB security keys with the Web Authentication standard in Safari on macOS</a>.」</p>
-</aside>
-<p>認証器（以下のうちのどれか）:</p>
-<ol type="1" start="1">
-<li>FIDO2対応の認証器</li>
-<li>デバイス内蔵の認証器</li>
-<li>Chrome拡張Virtual Authenticators Tab（物理的な認証器が手元にない場合）</li>
-</ol>
-<p>上記のデバイス、ブラウザと認証器の組み合わせの例は以下のとおりです。</p>
-<table>
-<tr><td colspan="1" rowspan="1"><p>① 認証機内蔵のAndroidとChrome</p>
-<p>(Pixel 3a は背面に指紋認証がついており、<br>ChromeブラウザでFIDO2認証を行います)</p>
-<p class="image-container"><img style="width: 131.04px" src="img/ed8fef65003677f4.png"> <img style="width: 121.50px" src="img/d875c4aa759f2a2a.png"></p>
-</td><td colspan="1" rowspan="1"><p>② AndroidとChromeとUSB型認証器</p>
-<p>(Pixel 3aに「<a href="https://www.yubico.com/product/yubikey-5ci" target="_blank">YubiKey 5Ci</a>」をUSB-Cで接続し、<br>ChromeブラウザでFIDO2認証を行います)</p>
-<p class="image-container"><img style="width: 120.92px" src="img/9298d220a2457be1.png"></p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>③ iPhoneとSafariとUSB型認証器</p>
-<p>(iPhone7に「<a href="https://www.yubico.com/product/yubikey-5ci" target="_blank">YubiKey 5Ci</a>」をLightningで接続、SafariブラウザでFIDO2認証を行います)</p>
-<p class="image-container"><img style="width: 116.50px" src="img/15fcf5a941c9c3ca.png"></p>
-</td><td colspan="1" rowspan="1"><p>④ Mac BookとChromeブラウザとUSB型認証器</p>
-<p>(Mac Bookに「<a href="https://www.yubico.com/product/security-key-by-yubico" target="_blank">Yubico Security Key</a>」をUSB-Aで<br>接続、ChromeブラウザでFIDO2認証を行います)</p>
-<p class="image-container"><img style="width: 200.50px" src="img/a0aa5797d8f272cf.png"></p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>⑤ Windows10とEdgeブラウザとUSB型認証器</p>
-<p>(Windows10に<a href="https://www.yubico.com/product/security-key-by-yubico" target="_blank">Yubico Security Key</a>をUSB-Aで<br>接続、EdgeブラウザでFIDO2認証を行います)</p>
-<p class="image-container"><img style="width: 188.50px" src="img/c95f52b5598e000b.png"></p>
-</td><td colspan="1" rowspan="1"><p>⑥ Windows10とChromeブラウザとUSB型認証器</p>
-<p>(Windows10に<a href="https://www.yubico.com/product/security-key-by-yubico" target="_blank">Yubico Security Key</a>をUSB-Aで<br>接続、ChromeブラウザでFIDO2認証を行います)</p>
-<p class="image-container"><img style="width: 170.50px" src="img/b7dabcc017d4a98.png"></p>
-</td></tr>
-</table>
 <h2 is-upgraded>認証器の種類</h2>
-<p>ここでは上述で紹介した認証器が認証行為そのものとどう関係しているのかを整理します。</p>
-<p>まず、IT分野における「認証」という行為は、一般的に「知識」「所有」「生体」という３つの要素の組み合わせと考えられています。IDとパスワードの組み合わせは物理的な「所有」や「生体」とは関係なく、ユーザ登録をした本人しかほぼ知り得ない「知識」をもとにした認証です。しかし、「ほぼ知り得ない」というのが危険で、フィッシングサイト等を経由して盗まれたり、サーバ側で漏洩したりする危険性があります。一方、公開鍵暗号化方式のキーペアを使った通信では、秘密鍵ファイルの保存管理が面倒くさかったり、紛失の可能性が高いといった問題があります。</p>
+<p>ここでは生体認証用の認証器が、認証行為そのものとどう関係しているのかを整理します。</p>
+<p>まず、IT分野における「認証」という行為は、一般的に「知識」「所有」「生体」という３つの要素の組み合わせと考えられています。IDとパスワードの組み合わせは物理的な「所有」や「生体」とは関係なく、ユーザ登録をした本人しかほぼ知り得ない「知識」をもとにした認証です。しかし、「ほぼ知り得ない」というのが問題で、フィッシングサイト等を経由して他者に盗まれたり、サーバ側で情報が漏洩したりする危険性があります。一方、公開鍵暗号化方式のキーペアを使った通信では、秘密鍵ファイルの保存管理が面倒くさいといった問題があります。</p>
 <p>そのため、FIDOでは認証器なるものを用意し、その中の安全なエリアで適宜キーペアが作成され、必要に応じてその中の秘密鍵を使って署名を行ったり相手側から送信された公開鍵による署名をチェックするしくみを採用しています。認証器の重要なポイントは、どのような方法を使っても秘密鍵は取り出すことができないが署名はできる、という機能を持つことです。</p>
-<p>第一段階として、この認証器をUSBドングルやNFCカードとして用意し、ユーザはそれを「所有」し、PINコードで守ることで「知識」のエッセンスを加える方式が取られました。この方式をとるものが上述のYubico社の「<a href="https://www.yubico.com/product/security-key-by-yubico" target="_blank">Yubico Security Key</a>」や「<a href="https://www.yubico.com/product/yubikey-5ci" target="_blank">YubiKey 5Ci</a>」です。さらにこの認証器に「生体」認証のしくみを加え、キーペア作成や秘密鍵による署名、公開鍵による署名のチェックといった処理を認証器が行う前に生体認証を行う、という方式をとるものに進化しました。それを実現しているのがGoogle Pixelに同梱された生体認証による認証器やWindows PCに同梱された生体認証機能であるWindows Hello、Yubico社の「<a href="https://www.yubico.com/blog/yubico-reveals-first-biometric-yubikey-at-microsoft-ignite/" target="_blank">Yubikey Bio</a>」などです。</p>
+<p>第一段階として、この認証器をUSBドングルやNFCカードとして用意し、ユーザはそれを「所有」し、PINコードで守ることで「知識」のエッセンスを加える方式が取られました。この方式をとるものがYubico社の「<a href="https://www.yubico.com/product/security-key-by-yubico" target="_blank">Yubico Security Key</a>」や「<a href="https://www.yubico.com/product/yubikey-5ci" target="_blank">YubiKey 5Ci</a>」です。さらにこの認証器に「生体」認証のしくみを加え、キーペア作成や秘密鍵による署名、公開鍵による署名のチェックといった処理を認証器が行う前に生体認証を行う、という方式をとるものに進化しました。それを実現しているのがGoogle Pixelに同梱された生体認証による認証器やWindows PCに同梱された生体認証機能であるWindows Hello、Yubico社の「<a href="https://www.yubico.com/blog/yubico-reveals-first-biometric-yubikey-at-microsoft-ignite/" target="_blank">Yubikey Bio</a>」などです。</p>
 <p>以上を認証の3要素の組み合わせと認証方式を整理すると以下の4種類に分けられます。</p>
 <ol type="1" start="1">
 <li>知識：パスワード認証</li>
@@ -149,52 +99,20 @@
 <li><a href="https://glitch.com/" target="_blank">glitch</a> にユーザ登録し、ログインします。</li>
 <li><a href="https://glitch.com/edit/#!/webauthn-codelab-start" target="_blank">https://glitch.com/edit/#!/webauthn-codelab-start</a> にアクセスし、画面右上の「Remix to Edit」ボタンを押下します。これによりハンズオンのベースプロジェクトであるパスワードログインプロジェクトを自分のプロジェクトとしてフォークします。</li>
 </ol>
-<p class="image-container"><img style="width: 219.94px" src="img/73413fa2c89ee813.png"></p>
+<p class="image-container"><img style="width: 219.94px" src="img/5ab30b17250d54a7.png"></p>
 <ol type="1" start="3">
 <li>フォークされたプロジェクトのプロジェクト名は他とかぶらない文字列を使って勝手に生成されますが（下図の「changeable-morning-kos...」）、この文字列は修正が可能です（既存プロジェクト名とかぶらないことが条件）。</li>
 </ol>
-<p class="image-container"><img style="width: 203.08px" src="img/b3be29d9266187e.png"> <img style="width: 201.80px" src="img/e9bc3a9678731719.png"></p>
+<p class="image-container"><img style="width: 203.08px" src="img/29bc8c64be37ce0b.png"> <img style="width: 201.80px" src="img/7dbed83158c70333.png"></p>
 <h2 is-upgraded>ホスト名の設定</h2>
 <p>フォークしたプロジェクトを編集するには、下図のように画面左側のファイルツリーから編集したいファイルを選択します。</p>
-<p class="image-container"><img style="width: 330.50px" src="img/488d5e7d802646b6.png"></p>
+<p class="image-container"><img style="width: 330.50px" src="img/c0d70636c0574e8b.png"></p>
 <p>まず .env ファイルの該当部分を下記の通り編集します。</p>
 <p>.env</p>
 <pre>HOSTNAME=&lt;プロジェクト名&gt;.glitch.me</pre>
 <p>これによりブラウザから「https://&lt;プロジェクト名&gt;.glitch.me」にアクセスできるようになります。</p>
 <aside class="warning"><p><strong>注意:</strong> ここでは「HOSTNAME=&lt;プロジェクト名&gt;」だけでもglichは可動しますが、後続の rpId にホスト名が FQDN でセットされる必要があるので「.glitch.com」も忘れずに追加するようにしてください。。</p>
 </aside>
-<h2 is-upgraded>Virtual Authenticators Tabのインストール</h2>
-<p>前述したとおり、本書はFIDO2サーバ構築のハンズオンであり、本来はFIDO2に対応した認証器を使いたいところですが、FIDOアライアンスには<a href="https://fidoalliance.org/members/" target="_blank">Apple社が参加したばかり</a>の状況で、まだまだデバイス内蔵型の認証器は十分普及していません。また、USB型の認証機などをお持ちの方も少ない状況だと思いますので、ここではパソコン上のChromeブラウザにその拡張機能である「Virtual Authenticators Tab」をインストールして利用することとします。ハンズオンの開発後の確認作業で利用しますので、ここでインストールを行います。</p>
-<aside class="warning"><p><strong>注意:</strong> FIDO2対応の認証器をお持ちの方はこのステップを行わなくてもかまいません。</p>
-</aside>
-<ol type="1" start="1">
-<li>パソコンにChrome（バージョン70以上）がインストールされていない場合は手元のブラウザから下記URLにアクセスしてChromeをインストールします。<br><a href="https://www.google.com/intl/ja_ALL/chrome/" target="_blank">https://www.google.com/intl/ja_ALL/chrome/</a></li>
-<li>Chromeを開いて、<a href="https://chrome.google.com/webstore/category/extensions" target="_blank">chromeウェブストア</a>にアクセスします。</li>
-<li>画面左上のテキストエリアに「Virtual Authenticators Tab」と入力してEnterを押下するとChrome拡張「Virtual Authenticators Tab」がリストの一番上に表示されますので、「Chromeに追加」ボタンを押下してインストールします。</li>
-</ol>
-<p class="image-container"><img style="width: 370.88px" src="img/fb931d4a00c28527.png"></p>
-<ol type="1" start="4">
-<li>右上のボタンを押下し、「その他のツール」&gt;「デベロッパーツール」を選択します。</li>
-</ol>
-<p class="image-container"><img style="width: 479.50px" src="img/4cc765747cfa8b26.png"></p>
-<ol type="1" start="5">
-<li>Chromeブラウザの下部にデベロッパーツールが表示されますので、ヘッダーの一番右側にある「Virtual Authenticators」のタブを選択し、表示された画面上の「Enable Virtual Authenticator Environment」にチェックをいれます。</li>
-</ol>
-<p class="image-container"><img style="width: 517.50px" src="img/decaca8147c88457.png"></p>
-<ol type="1" start="6">
-<li>上図の通り「New Authenticator」画面が表示されますので、デフォルトのままで「Add」ボタンを押下すると仮想認証器が作成され、Chromeブラウザと接続します。これで準備が整った状態になります。</li>
-</ol>
-<p class="image-container"><img style="width: 602.00px" src="img/a032d91eb0bcb497.png"></p>
-<ol type="1" start="7">
-<li>各設定値の意味は以下のとおりです。</li>
-</ol>
-<ul>
-<li>Authenticatorの右に表示される&#34;[8桁]-[4桁]-[4桁]-[4桁]-[12桁]&#34;からなる文字列はAAGUID（Authenticator Attestation Global Unique Identifierの略）と呼ばれ、物理的な認証器一つ一つに割り当てられるIDを表します。本来FIDOアライアンスから認証を受けた認証器メーカに重複しないようにIDを割り当てることによって管理されています。例えば、Yubico社には<a href="https://support.yubico.com/support/solutions/articles/15000028710-yubikey-hardware-fido2-aaguids" target="_blank">リンク先</a>のようなAAGUIDが割り当てられています。</li>
-<li>Protocolとして指定されているCTAP2とはFIDO2で規定されているブラウザと認証器の間でやり取りされるインタフェース仕様を取り決めたものです。そのため、認証器デバイスの製造メーカーが意識する仕様でFIDO2サーバ開発者は意識する必要はありません。</li>
-<li>Transportとは認証器のタイプを表し、USB接続型の場合は&#34;usb&#34;、ブルートゥース接続型の場合&#34;ble&#34;、NFC接続型の場合&#34;nfc&#34;、デバイス内蔵型の場合は&#34;internal&#34;になります。</li>
-<li>Supports Resident KeysのResident Keyとは認証器に登録される複数のキーペアに対してユーザID、ユーザ名、ディスプレイ名もあわせて登録できることを表します。これによりログイン先に対して複数のキーペアの候補がある場合、ディスプレイ名をリストしてユーザを選択して利用するといったユーザインタフェースが可能になります。</li>
-<li>Supports User VerificationのUser Verificationとは「はじめに」の「認証器の種類」で説明したとおり、認証器にアクセスする際生体認証やPINコードを通してユーザの検証を行うかを表します。</li>
-</ul>
 
 
       </google-codelab-step>
@@ -1248,16 +1166,15 @@ authenticate({userVerification: &#39;preferred&#39;}).then(user =&gt; {
 <tr><td colspan="1" rowspan="1"><p>① サーバに登録されたユーザデータをサーバ上からクリアするために、下記URLをブラウザから実行します。もちろんこの機能は開発環境としての機能であり本番では実装してはいけません。</p>
 <p>https://&lt;プロジェクト名&gt;.glitch.me/auth/resetDB</p>
 </td></tr>
-<tr><td colspan="1" rowspan="1"><p>② 「https://&lt;プロジェクト名&gt;.glitch.me」にアクセスし、Virtual Authenticator Tabを起動し、デフォルト値でAuthenticatorを作成します。その後、「username」に適当なユーザ名を入力して「NEXT」ボタンを押下します。</p>
-<p class="image-container"><img style="width: 393.50px" src="img/a219838b60da890f.png"></p>
+<tr><td colspan="1" rowspan="1"><p>② 「https://&lt;プロジェクト名&gt;.glitch.me」にアクセスし、「username」に適当なユーザ名を入力して「NEXT」ボタンを押下します。</p>
 </td></tr>
 <tr><td colspan="1" rowspan="1"><p>③ 次のページで「password」に適当なパスワードを入力して「SIGN-IN」ボタンを押下します。初回のため、クリデンシャルが登録されていないため、パスワード入力が必要です。</p>
 </td></tr>
-<tr><td colspan="1" rowspan="1"><p>④ ホーム画面が表示されますので、右下「+」のFABボタンを押下すると仮想的なAuthenticatorが自動的にクリデンシャルを作成して公開鍵をサーバに登録します。<br><img style="width: 379.50px" src="img/3c000bace3a6f40e.png"></p>
+<tr><td colspan="1" rowspan="1"><p>④ ホーム画面が表示されますので、右下「+」のFABボタンを押下すると生体認証のダイアログが開くのでクリデンシャルを作成して公開鍵をサーバに登録します。</p>
 </td></tr>
-<tr><td colspan="1" rowspan="1"><p>⑤ ホーム画面で「TRY REAUTH」ボタンを押下すると画面③に移動しますが、仮想認証器のクリデンシャルが読み込まれ、自動的に再ログインします。</p>
+<tr><td colspan="1" rowspan="1"><p>⑤ ホーム画面で「TRY REAUTH」ボタンを押下すると画面③に移動し、再ログインします。</p>
 </td></tr>
-<tr><td colspan="1" rowspan="1"><p>⑥ ホーム画面で「SIGN OUT」ボタンを押下すると画面②に移動しますが、再度先程入力したユーザ名を入力して「NEXT」ボタンを押下すると②に移動しますが、再び仮想認証器のクリデンシャルが読み込まれ、自動的に再ログインします。クリデンシャルが何度ログインに使用されたかは「Virtual Authenticator Tab」画面にあるクリデンシャルのリスト表にある「Sign Count」列に数値として表示されます。<br><img style="width: 583.00px" src="img/fdf96ad5e63cc461.png"></p>
+<tr><td colspan="1" rowspan="1"><p>⑥ ホーム画面で「SIGN OUT」ボタンを押下すると画面②に移動しますが、再度先程入力したユーザ名を入力して「NEXT」ボタンを押下すると②に移動しますが、再び仮想認証器のクリデンシャルが読み込まれ、自動的に再ログインします。クリデンシャルが何度ログインに使用されたかは「Virtual Authenticator Tab」画面にあるクリデンシャルのリスト表にある「Sign Count」列に数値として表示されます。<br><img style="width: 583.00px" src="img/35383fa7e0ff0249.png"></p>
 <p>ちなみに、Exportをクリックするとクリデンシャルの秘密鍵がダウンロードでき、Removeをクリックするとクリデンシャルを削除することができます。</p>
 </td></tr>
 </table>
@@ -1270,7 +1187,7 @@ authenticate({userVerification: &#39;preferred&#39;}).then(user =&gt; {
 <p>前述したとおりFIDOアライアンスはFIDOの仕様策定と認証器やFIDOサーバに対する<a href="https://fidoalliance.org/certification/?lang=ja" target="_blank">認定プログラム</a>を提供しています。この<a href="https://fidoalliance.org/certification/functional-certification/?lang=ja" target="_blank">機能認定プログラム</a>における手順のうちまず最初に行うのはテストツールを使用してセフルチェックを行うことです。</p>
 <h2 is-upgraded>FIDO 自己テストツールの取得方法</h2>
 <p>FIDO自己テストツールの入手方法は<a href="https://fidoalliance.org/certification/functional-certification/conformance/" target="_blank">リンク先</a>から申請を行うことでだれでも無料でダウンロード先とID、パスワードをFIDOアライアンスからメールで教えてもらうことができます。本書ではFIDO2サーバを構築しましたので、「FIDO2 Test Tools」を利用します。<a href="https://fidoalliance.org/tool-request-agreement/" target="_blank">申請フォーム</a>に必要項目を入力しSubmitします。数日後に指定したEmailアドレスに必要な情報が送られてきます。</p>
-<p class="image-container"><img style="width: 254.33px" src="img/fa3c629f2d028a42.png"></p>
+<p class="image-container"><img style="width: 254.33px" src="img/98af52201c943dcf.png"></p>
 
 
       </google-codelab-step>
@@ -1278,9 +1195,9 @@ authenticate({userVerification: &#39;preferred&#39;}).then(user =&gt; {
       <google-codelab-step label="FIDO 自己テストツールの実行" duration="0">
         <p>返信メールに記載されたURLにベーシック認証でログインするとフォルダのリストが表示されますので、「Desktop UAF FIDO2 U2F」を選択します。その後、最新バージョンのフォルダを選択すると、Windows版実行ファイル（拡張子exe）、Windows版インストーラ（拡張子msi）もしくはMac版インストーラ（拡張子dmg）の各ファイルをダウンロードできるリンクが表示されますのでプラットフォームに従って選択してダウンロードします。</p>
 <p>① インストール後、「FIDO Conformance Tools」を実行します。</p>
-<p class="image-container"><img style="width: 348.50px" src="img/fc98cf97ec3ae72a.png"></p>
+<p class="image-container"><img style="width: 348.50px" src="img/ddbb7c2de253c9c0.png"></p>
 <p>② FIDO2 TestsのRunをクリックします。</p>
-<p class="image-container"><img style="width: 350.78px" src="img/9636de3f39e867df.png"></p>
+<p class="image-container"><img style="width: 350.78px" src="img/9bf0961f55870074.png"></p>
 <p>③ FIDO2 TestsにServer URLと実行するテストを選択します。Server URLは画面右上の「TESTS CONFIGURATION」の真下に「https://&lt;プロジェクト名&gt;.glitch.me/auth」をセットします。実行するテストとしては画面左下の以下の4つを選択します。</p>
 <ul>
 <li>MakeCredential Request : 登録リクエスト処理を意味します。</li>
@@ -1288,9 +1205,9 @@ authenticate({userVerification: &#39;preferred&#39;}).then(user =&gt; {
 <li>GetAssertion Request : 認証リクエスト処理を意味します。</li>
 <li>GetAssertion Response : 認証処理を意味します。</li>
 </ul>
-<p class="image-container"><img style="width: 368.41px" src="img/2d69955f2348e35b.png"></p>
+<p class="image-container"><img style="width: 368.41px" src="img/e65db7d9529c1f0.png"></p>
 <p>④ 「RUN」ボタンを押下して実行すると下記のような結果になります。本ハンズオンの実装では121のテストケースのうち32が失敗します。</p>
-<p class="image-container"><img style="width: 368.50px" src="img/798aef371201493f.png"></p>
+<p class="image-container"><img style="width: 368.50px" src="img/17a6abfdf999a228.png"></p>
 
 
       </google-codelab-step>
@@ -1299,7 +1216,7 @@ authenticate({userVerification: &#39;preferred&#39;}).then(user =&gt; {
         <p>以上のテスト結果が示すとおり、認証器を使ったログインを実現するFIDO2サーバを構築しましたが、三分の一ほどがエラーになります。これはハンズオンが利用しているnpmライブラリがFIDO2を完全にサポートしていないことが理由です。</p>
 <p>本書のFIDO2サーバ構築における最も重要なnpmライブラリは「package.json」で宣言されている「&#34;fido2-lib&#34;: &#34;agektmr/fido2-lib#android-compatible3&#34;」です。このライブラリはgithubを直接見にいっており「<a href="https://github.com/agektmr/fido2-lib/tree/android-compatible3/lib" target="_blank">https://github.com/agektmr/fido2-lib/tree/android-compatible3/lib</a>」を利用しています。</p>
 <p>このコードは上記リンク先のGithubにおける下記表記が示すとおり、Google提供のハンズオンを作成した「agektmr」さんが管理するものであり、もともとは「apowers313」さんが開発したソースコードをベースにしています。</p>
-<p class="image-container"><img style="width: 283.50px" src="img/5608679306c3e1b.png"></p>
+<p class="image-container"><img style="width: 283.50px" src="img/d77a748a73a25670.png"></p>
 <p>なお、このライブラリがFIDO2サーバ構築における最も重要であると述べたのは、ライブラリが提供する「f2l」が「libs/auth.js」に記載された下記の４つのコードに関係しているためです。</p>
 <table>
 <tr><td colspan="1" rowspan="1"><p>-</p>
@@ -1390,10 +1307,10 @@ authenticate({userVerification: &#39;preferred&#39;}).then(user =&gt; {
     
   </google-codelab>
 
-  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
-  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
-  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
-  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+  <script src="https://storage.googleapis.com/claat-public/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/claat-public/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/claat-public/prettify.js"></script>
+  <script src="https://storage.googleapis.com/claat-public/codelab-elements.js"></script>
   <script src="//support.google.com/inapp/api.js"></script>
 
 </body>

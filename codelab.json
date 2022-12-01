@@ -3,18 +3,18 @@
   "format": "html",
   "prefix": "https://storage.googleapis.com",
   "mainga": "UA-49880327-14",
-  "updated": "2020-08-20T02:02:46Z",
-  "id": "fido2-",
+  "updated": "2022-01-04T15:39:26Z",
+  "id": "fido2",
   "duration": 0,
-  "title": "FIDO2サーバの構築",
+  "title": "FIDO2",
   "summary": "FIDO2サーバをnodejsで構築するハンズオン",
   "source": "1o72P2lPwx_r-zKFRqdWaTSuFUeobzZzgu9KbFSsB5m4",
-  "theme": "fido",
+  "theme": "fido2",
   "status": null,
   "category": [
-    "FIDO",
+    "fido2",
     "nodejs"
   ],
   "tags": [],
-  "url": "fido2-"
+  "url": "fido2"
 }
